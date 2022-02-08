@@ -1,0 +1,55 @@
+#Configurations for the Microsoft Teams Connector
+
+# Microsoft Teams configuration settings
+# Username of the Azure account to fetch the access_token
+username: "username@xyz.com"
+# Password of the Azure account to fetch the access_token
+password: "REDACTED"
+# Application or Client Id of the registered application on Azure platform
+application_id: "12345-67890"
+# Generated client secret of the registered application on Azure platform
+client_secret: "REDACTED"
+# Tenant Id of the Azure platform
+tenant_id: "abcdef-12345"
+
+#Workplace Search configuration settings
+#Access token for Workplace search authentication
+enterprise_search.access_token: ""                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+#Source identifier for the custom source created on the workplace search server
+enterprise_search.source_id: ""
+#Workplace search server address Example: http://es-host:3002
+enterprise_search.host_url: ""
+
+# Connector specific configuration settings
+# Denotes whether document permission will be enabled or not
+enable_document_permission: Yes
+# Specifies the objects to be fetched and indexed in the WorkPlace search along with fields 
+# that needs to be included/excluded. The list of the objects supported are users, teams, 
+# channels, chat_messages. By default all the objects are fetched
+objects:
+  teams:
+  channels:
+  channel_messages:
+  channel_documents:
+  channel_tabs:
+  user_chats:
+  calendar:
+
+#The time after which all the objects that are modified or created are fetched from MS Teams. By default, all the objects present in the MS Teams till the end_time are fetched
+start_time : "2021-11-23T00:00:00Z"
+#The timestamp before which all the updated objects need to be fetched i.e. the connector won’t fetch any object updated/created after the end_time. By default, all the objects updated/added till the current time are fetched
+end_time : "2021-12-23T10:32:00Z"
+#The interval after which the connector looks for new/updated objects from MS Teams. The unit of the interval is minutes. By default, the interval is considered to be 60 minutes
+indexing_interval: 60
+#The interval after which the connector fetches all the objects from MS Teams from a given start_time in the configuration file to the current time
+full_sync_interval: 2880
+#The interval after which the connector looks for the deleted objects from MS Teams. The unit of the interval is minutes. By default, the interval is considered to be 60 minutes
+deletion_interval: 60
+#The level of the logs the user wants to use in the log files. The possible values include: debug, info, warn, error. By default, the level is info
+log_level: info
+#The number of retries to perform in case of server error. The connector will use exponential backoff for retry mechanism
+retry_count: 3
+#Number of worker processes to be used for the connector. The ideal value should be equal to the number of CPU cores in the machine
+worker_process: 40
+#The path of csv file containing mapping of MS Teams user ID to Workplace user ID
+msteams_workplace_user_mapping: "user_map.csv"
