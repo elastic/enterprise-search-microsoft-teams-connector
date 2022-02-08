@@ -1,0 +1,9 @@
+msal
+cerberus
+tika
+ecs_logging
+elastic_enterprise_search
+pyyaml
+beautifulsoup4
+pandas
+iteration_utilities

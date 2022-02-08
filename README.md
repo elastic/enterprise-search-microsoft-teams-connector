@@ -1,1 +1,0 @@
-# enterprise-search-microsoft-teams-connector
