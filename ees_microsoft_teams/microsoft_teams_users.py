@@ -6,13 +6,15 @@
 #
 """ This module is used to fetch all Microsoft Teams users.
 """
-import requests
 import json
+import requests
+
 from . import constant
 
 
 class MSTeamsUsers:
     """This class fetch Microsoft Teams users."""
+
     def __init__(self, token, logger):
         self.access_token = token
         self.logger = logger
