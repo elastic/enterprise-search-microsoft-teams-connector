@@ -10,10 +10,11 @@
 """
 
 import yaml
-from yaml.error import YAMLError
 from cerberus import Validator
-from .schema import schema
+from yaml.error import YAMLError
+
 from .constant import DATETIME_FORMAT
+from .schema import schema
 
 
 class ConfigurationInvalidException(Exception):
@@ -80,4 +81,6 @@ class Configuration:
 
     @staticmethod
     def __parse_date_config_value(string):
+        """Return Datetime by formatting into readable formats.
+        """
         return string.strftime(DATETIME_FORMAT)

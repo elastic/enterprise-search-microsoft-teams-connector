@@ -18,6 +18,7 @@ from .base_command import BaseCommand
 class BootstrapCommand(BaseCommand):
     """This class defines a method to create a content source.
     """
+
     def execute(self):
         """This function attempts to create a Content Source.
 
@@ -61,6 +62,7 @@ class BootstrapCommand(BaseCommand):
 
             content_source_id = resp.get('id')
             logger.info(
-                f"Created ContentSource with ID {content_source_id}. You may now begin indexing with content-source-id= {content_source_id}")
+                f"Created ContentSource with ID {content_source_id}. You may now begin indexing with \
+                content-source-id= {content_source_id}")
         except Exception as exception:
             logger.error(f"Could not create a content source, Error {exception}")

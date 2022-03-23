@@ -16,6 +16,8 @@ class FullSyncCommand(BaseCommand):
     """This class start execution of full sync feature.
     """
     def execute(self):
+        """This function execute the start function.
+        """
         config = self.config
         logger = self.logger
         workplace_search_client = self.workplace_search_client

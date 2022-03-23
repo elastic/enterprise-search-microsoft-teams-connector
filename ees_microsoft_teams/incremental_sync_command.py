@@ -19,6 +19,8 @@ class IncrementalSyncCommand(BaseCommand):
     """This class start executions of incrementalsync feature.
     """
     def execute(self):
+        """This function execute the start function.
+        """
         config = self.config
         logger = self.logger
         workplace_search_client = self.workplace_search_client

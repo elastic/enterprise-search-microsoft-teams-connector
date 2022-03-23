@@ -6,8 +6,8 @@
 """This module contains all the constants used throughout the code.
 """
 
-import os
 import datetime
+import os
 
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 TEAMS = "Teams"
@@ -28,10 +28,17 @@ CHATS = "Chats"
 USER_CHAT_DRIVE_ITEM = "User Chat Drive Item"
 USER_CHAT_DRIVE = "User Chat Drive"
 USER = "User"
-DOCUMENT_SIZE = 100
-MIMETYPES = ["audio/aac", "video/x-msvideo", "application/x-cdf", "audio/midi audio/x-midi", "audio/mpeg", "audio/mp4", "video/mp4", "video/mpeg", "audio/ogg", "video/ogg", "audio/opus", "audio/wav", "audio/webm", "video/webm", "audio/3gpp", "video/3gpp", "video/3gpp2", "audio/3gpp2"]
+BATCH_SIZE = 100
+MIMETYPES = [
+    "audio/aac", "video/x-msvideo", "application/x-cdf", "audio/midi audio/x-midi", "audio/mpeg", "audio/mp4",
+    "video/mp4", "video/mpeg", "audio/ogg", "video/ogg", "audio/opus", "audio/wav", "audio/webm", "video/webm",
+    "audio/3gpp", "video/3gpp", "video/3gpp2", "audio/3gpp2"]
 CURRENT_TIME = (datetime.datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 USER_CHAT_DELETION_PATH = os.path.join(os.path.dirname(__file__), "doc_ids", "microsoft_teams_user_chat_doc_ids.json")
-CALENDAR_CHAT_DELETION_PATH = os.path.join(os.path.dirname(__file__), "doc_ids", "microsoft_teams_calendar_doc_ids.json")
-CHANNEL_CHAT_DELETION_PATH = os.path.join(os.path.dirname(__file__), "doc_ids", "microsoft_teams_channel_chat_doc_ids.json")
+CALENDAR_CHAT_DELETION_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "doc_ids", "microsoft_teams_calendar_doc_ids.json")
+CHANNEL_CHAT_DELETION_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "doc_ids", "microsoft_teams_channel_chat_doc_ids.json")

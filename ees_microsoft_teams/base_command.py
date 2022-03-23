@@ -16,20 +16,23 @@ try:
     from functools import cached_property
 except ImportError:
     from cached_property import cached_property
-from .configuration import Configuration
+
 from elastic_enterprise_search import WorkplaceSearch
+
+from .configuration import Configuration
 
 
 class BaseCommand:
     """Base interface for all module commands.
     Inherit from it and implement 'execute' method, then add
     code to cli.py to register this command."""
+
     def __init__(self, args):
         self.args = args
 
     def execute(self):
         """Run the command.
-        This method is overriden by actual commands with logic
+        This method is overridden by actual commands with logic
         that is specific to each command implementing it."""
         raise NotImplementedError
 

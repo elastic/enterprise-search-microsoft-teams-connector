@@ -6,6 +6,7 @@
 """schema module contains Connector configuration file schema.
 """
 import datetime
+
 from .constant import DATETIME_FORMAT
 
 

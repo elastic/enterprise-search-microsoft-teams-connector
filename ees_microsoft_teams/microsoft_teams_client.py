@@ -6,18 +6,21 @@
 """This module queries Microsoft Teams Graph API and returns the parsed response.
 """
 
-import requests
-import pandas
-from . import constant
-from requests.exceptions import RequestException
-from .msal_access_token import MSALAccessToken
 from json import JSONDecodeError
-from .utils import retry
+
+import pandas
+import requests
+from requests.exceptions import RequestException
 from requests.models import Response
+
+from . import constant
+from .msal_access_token import MSALAccessToken
+from .utils import retry
 
 
 class ResponseException(Exception):
-    """Exception raised when there is an internal server error encountered by connecting to the Microsoft Teams using Graph APIs.
+    """Exception raised when there is an internal server error encountered by connecting to the Microsoft Teams using
+    Graph APIs.
     Attributes:
         message -- explanation of the error
     """
@@ -29,6 +32,7 @@ class ResponseException(Exception):
 
 class MSTeamsClient:
     """This class invokes GET call to the Microsoft Graph API on the basis of pagination and filters."""
+
     def __init__(self, logger, access_token, config):
         self.access_token = access_token
         self.logger = logger
@@ -38,10 +42,12 @@ class MSTeamsClient:
         }
 
     @retry(exception_list=(RequestException, ResponseException))
-    def get(self, url, object_type, is_pagination, is_filter, page_size=0, filter_query="", datetime_filter_column_name="lastModifiedDateTime", is_pandas_series=False):
+    def get(self, url, object_type, is_pagination, is_filter, page_size=0, filter_query="",
+            datetime_filter_column_name="lastModifiedDateTime", is_pandas_series=False):
         """ Invokes a GET call to the Microsoft Graph API
             :param url: Base url to call the Graph API
-            :param object_type: Parameter name whether it is teams, channels, channel_chat, channel_docs, calendar, user_chats, permissions or deletion
+            :param object_type: Parameter name whether it is teams, channels, channel_chat, channel_docs, calendar,
+                user_chats, permissions or deletion
             :param is_pagination: Flag to check if pagination is enabled
             :param is_filter: Flag to check if filter is enabled
             :param page_size: Size of the top variable for pagination
@@ -82,7 +88,8 @@ class MSTeamsClient:
                 if response and response.status_code == requests.codes.ok:
                     if is_pagination and not is_filter:
                         response_data = self.get_response_data(response)
-                        if object_type in [constant.MEMBER, constant.TEAMS, constant.CHATS, constant.DRIVE, constant.CALENDAR]:
+                        if object_type in [
+                                constant.MEMBER, constant.TEAMS, constant.CHATS, constant.DRIVE, constant.CALENDAR]:
                             response_list["value"].extend(response_data.get("value"))
                         else:
                             data_frame = pandas.DataFrame(response_data.get("value"))
@@ -97,7 +104,8 @@ class MSTeamsClient:
                                     # Filtered data for files
                                     row = data_frame.loc[data_frame["folder"].isnull()]
                                 data_frame.lastModifiedDateTime = pandas.to_datetime(data_frame.lastModifiedDateTime)
-                                filtered_df = row.loc[(data_frame['lastModifiedDateTime'] >= start_time) & (data_frame['lastModifiedDateTime'] < end_time)]
+                                filtered_df = row.loc[(data_frame['lastModifiedDateTime'] >= start_time) & (
+                                    data_frame['lastModifiedDateTime'] < end_time)]
                                 filter_data = filtered_df.to_dict('records')
                                 response_list["value"].extend(filter_data)
                         url = response_data.get("@odata.nextLink")
@@ -111,7 +119,8 @@ class MSTeamsClient:
                         if not url:
                             paginate_query = None
                         break
-                    elif not (object_type in [constant.CHANNELS, constant.ROOT, constant.ATTACHMENTS] or is_pagination or is_filter):
+                    elif not (object_type in [
+                            constant.CHANNELS, constant.ROOT, constant.ATTACHMENTS] or is_pagination or is_filter):
                         response_data = self.get_response_data(response)
                         data_frame = pandas.DataFrame(response_data.get("value"))
                         if not data_frame.empty:
@@ -122,10 +131,13 @@ class MSTeamsClient:
                             if datetime_filter_column_name not in rows.columns:
                                 rows[datetime_filter_column_name] = start_time
 
-                            # Set start_time if value of "datetime_filter_column_name" column is null for any specific row
-                            rows.loc[rows[datetime_filter_column_name].isnull(), datetime_filter_column_name] = start_time
+                            # Set start_time if value of "datetime_filter_column_name" column is null for any
+                            # specific row
+                            rows.loc[rows[datetime_filter_column_name].isnull(),
+                                     datetime_filter_column_name] = start_time
                             rows[datetime_filter_column_name] = pandas.to_datetime(rows[datetime_filter_column_name])
-                            filtered_df = data_frame.loc[(rows[datetime_filter_column_name] >= start_time) & (rows[datetime_filter_column_name] < end_time)]
+                            filtered_df = data_frame.loc[(rows[datetime_filter_column_name] >= start_time) &
+                                                         (rows[datetime_filter_column_name] < end_time)]
                             filter_data = filtered_df.to_dict('records')
                             response_list["value"].extend(filter_data)
 
@@ -138,8 +150,10 @@ class MSTeamsClient:
                         self.regenerate_token(object_type)
                         continue
                     response_data = self.get_response_data(response)
-                    # Error 403 occurs when the current user is trying fetch the Teams and it's object which was created by other user
-                    if response.status_code == 403 or (response.status_code == 404 and response_data.get("error", {}).get("code") == "NotFound"):
+                    # Error 403 occurs when the current user is trying fetch the Teams and it's object which was
+                    # created by other user
+                    if response.status_code == 403 or (
+                            response.status_code == 404 and response_data.get("error", {}).get("code") == "NotFound"):
                         if object_type in [constant.CHANNELS, constant.ATTACHMENTS, constant.ROOT]:
                             new_response = Response()
                             new_response._content = b'{"value": []}'
@@ -148,11 +162,15 @@ class MSTeamsClient:
                         else:
                             return {"value": []}
                     elif not (object_type == 'deletion' and response.status_code == 404):
-                        self.logger.error(f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, url: {request_url}.")
+                        self.logger.error(
+                            f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, \
+                                url: {request_url}.")
                     return response
                 else:
                     paginate_query = None
-                    raise ResponseException(f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, url: {request_url}.")
+                    raise ResponseException(
+                        f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, url: \
+                            {request_url}.")
             except RequestException as exception:
                 raise exception
         return response_list
@@ -169,7 +187,8 @@ class MSTeamsClient:
 
     def regenerate_token(self, object_type):
         """ This function is used to regenerate the access token in case of access token has expired
-            :param object_type: Parameter name whether it is teams, channels, channel_chat, channel_docs, calendar, user_chats, permissions or deletion
+            :param object_type: Parameter name whether it is teams, channels, channel_chat, channel_docs, calendar,
+                user_chats, permissions or deletion
         """
         self.logger.info("Access Token has expired. Regenerating the access token...")
         token = MSALAccessToken(self.logger)

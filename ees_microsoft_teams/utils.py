@@ -8,9 +8,11 @@
 
 import time
 import urllib.parse
-from tika import parser
-from bs4 import BeautifulSoup
 from datetime import datetime
+
+from bs4 import BeautifulSoup
+from tika import parser
+
 from . import constant
 
 TIMEOUT = 400
@@ -71,19 +73,21 @@ def check_response(logger, response, error_message, exception_message):
         raise exception
 
 
-def insert_document_into_doc_id_storage(doc_ids_storage, id, type, parent_id, super_parent_id):
+def insert_document_into_doc_id_storage(ids_list, id, type, parent_id, super_parent_id):
     """ This function is used to prepare item for deletion and insert into global variable.
-        :param doc_ids_storage: Pass "global_keys" of microsoft_teams_user_chat_doc_ids.json, microsoft_teams_channel_chat_doc_ids.json and microsoft_teams_calendar_doc_ids.json
-        :param id: Pass id of User Chat, User Chat Attachment, Calendar, Calendar Attachment,Teams, Channel Chat, Channel Chat Attachment, Channel Chat Tabs and User Chat Tabs
+        :param ids_list: Pass "global_keys" of microsoft_teams_user_chat_doc_ids.json,
+            microsoft_teams_channel_chat_doc_ids.json and microsoft_teams_calendar_doc_ids.json
+        :param id: Pass id of User Chat, User Chat Attachment, Calendar, Calendar Attachment, Teams, Channel Chat,
+            Channel Chat Attachment, Channel Chat Tabs and User Chat Tabs
         :param type: Pass type of each document for deletion.
         :param parent_id: Pass parent id of each document for deletion.
         :param super_parent_id: Pass super parent id of each document for deletion
     """
     new_item = {"id": str(id), "type": type, "parent_id": str(parent_id), "super_parent_id": str(super_parent_id)}
-    if new_item not in doc_ids_storage:
-        return doc_ids_storage.append(new_item)
+    if new_item not in ids_list:
+        return ids_list.append(new_item)
     else:
-        return doc_ids_storage
+        return ids_list
 
 
 def url_decode(text):
@@ -101,7 +105,11 @@ def retry(exception_list):
         :param exception_list: Lists of exceptions on which the connector should retry
     """
     def decorator(func):
+        """This function used as a decorator.
+        """
         def execute(self, *args, **kwargs):
+            """This function execute the retry logic.
+            """
             retry = 1
             while retry <= self.retry_count:
                 try:

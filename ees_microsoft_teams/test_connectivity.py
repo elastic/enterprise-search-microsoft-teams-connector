@@ -9,14 +9,16 @@
     documents works.
 """
 
-import time
-import requests
-import pytest
 import logging
+import time
+
+import pytest
+import requests
 from elastic_enterprise_search import WorkplaceSearch
+
 from .configuration import Configuration
-from .msal_access_token import MSALAccessToken
 from .constant import GRAPH_BASE_URL
+from .msal_access_token import MSALAccessToken
 
 
 @pytest.fixture(name="settings")
@@ -104,7 +106,9 @@ def test_workplace(settings):
                 assert True
                 break
         except Exception as exception:
-            print(f"[Fail] Error while connecting to the workplace host {enterprise_search_host}. Retry Count: {retry}. Error: {exception}")
+            print(
+                f"[Fail] Error while connecting to the workplace host {enterprise_search_host}. Retry Count: \
+                {retry}. Error: {exception}")
             # This condition is to avoid sleeping for the last time
             if retry < retry_count:
                 time.sleep(2 ** retry)
@@ -140,13 +144,15 @@ def test_ingestion(settings):
     while retry <= retry_count:
         try:
             response = workplace_search.index_documents(
-                http_auth=configs.get_value("enterprise_search.api_key"), content_source_id=configs.get_value("enterprise_search.source_id"),
-                documents=document,
-            )
+                http_auth=configs.get_value("enterprise_search.api_key"),
+                content_source_id=configs.get_value("enterprise_search.source_id"),
+                documents=document,)
             print("Successfully indexed a dummy document with id 1234 in the Workplace")
             break
         except Exception as exception:
-            print(f"[Fail] Error while ingesting document to the workplace host {enterprise_search_host}. Retry Count: {retry}. Error: {exception}")
+            print(
+                f"[Fail] Error while ingesting document to the workplace host {enterprise_search_host}. Retry Count: \
+                    {retry}. Error: {exception}")
             # This condition is to avoid sleeping for the last time
             if retry < retry_count:
                 time.sleep(2 ** retry)
@@ -173,7 +179,9 @@ def test_ingestion(settings):
                     assert True
                     break
             except Exception as exception:
-                print(f"[Fail] Error while deleting document id 1234 from the workplace host {enterprise_search_host}. Retry Count: {retry}. Error: {exception}")
+                print(
+                    f"[Fail] Error while deleting document id 1234 from the workplace host {enterprise_search_host}. \
+                    Retry Count: {retry}. Error: {exception}")
                 # This condition is to avoid sleeping for the last time
                 if retry < retry_count:
                     time.sleep(2 ** retry)

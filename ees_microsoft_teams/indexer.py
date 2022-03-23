@@ -8,23 +8,26 @@
     It's possible to run full syncs and incremental syncs with this module.
 """
 
-import os
 import copy
 import csv
 import json
 import multiprocessing
-import pandas as pd
-from . import constant
-from .msal_access_token import MSALAccessToken
-from .microsoft_teams_channels import MSTeamsChannels
-from .checkpointing import Checkpoint
-from .permission_sync_command import PermissionSyncCommand
-from . import microsoft_teams_user_messages as ms_msg
-from . import microsoft_teams_calendars as cal
-from .adapter import DEFAULT_SCHEMA
+import os
 from multiprocessing.pool import ThreadPool
+
+import pandas as pd
 from iteration_utilities import unique_everseen
-from .utils import  split_list_into_buckets, split_date_range_into_chunks, get_thread_results
+
+from . import constant
+from . import microsoft_teams_calendars as cal
+from . import microsoft_teams_user_messages as ms_msg
+from .adapter import DEFAULT_SCHEMA
+from .checkpointing import Checkpoint
+from .microsoft_teams_channels import MSTeamsChannels
+from .msal_access_token import MSALAccessToken
+from .permission_sync_command import PermissionSyncCommand
+from .utils import (get_thread_results, split_date_range_into_chunks,
+                    split_list_into_buckets)
 
 
 class Indexer:
@@ -45,7 +48,8 @@ class Indexer:
 
     def get_schema_fields(self, document_name):
         """ Returns the schema of all the include_fields or exclude_fields specified in the configuration file.
-            :param document_name: Document name from teams, channels, channel_messages, channel_tabs, channel_documents, calendar and user_chats
+            :param document_name: Document name from teams, channels, channel_messages, channel_tabs,
+                channel_documents, calendar and user_chats
             Returns:
                 schema: Included and excluded fields schema
         """
@@ -86,7 +90,7 @@ class Indexer:
         """
         if documents:
             total_records_dict = self.get_records_by_types(documents)
-            for chunk in split_list_into_buckets(documents, constant.DOCUMENT_SIZE):
+            for chunk in split_list_into_buckets(documents, constant.BATCH_SIZE):
                 response = self.workplace_search_client.index_documents(
                     content_source_id=self.ws_source,
                     documents=chunk
@@ -131,7 +135,8 @@ class Indexer:
             )
             self.logger.info(f"Successfully indexed the permissions for user {user_name} to the workplace")
         except Exception as exception:
-            self.logger.exception(f"Error while indexing the permissions for user:{user_name} to the workplace. Error: {exception}")
+            self.logger.exception(
+                f"Error while indexing the permissions for user:{user_name} to the workplace. Error: {exception}")
             raise exception
 
     def index_permissions(self, user, roles):
@@ -157,23 +162,25 @@ class Indexer:
         self.logger.info("Started indexing user chat, meeting chat, attachments, tabs and meeting recoding")
         storage_with_collection = {"global_keys": [], "delete_keys": []}
         ids_collection = {}
-        doc_ids_storage = []
+        ids_list = []
         try:
             # Logic to read data from microsoft_teams_user_chat_doc_ids.json file.
-            if (os.path.exists(constant.USER_CHAT_DELETION_PATH) and os.path.getsize(constant.USER_CHAT_DELETION_PATH) > 0):
+            if (os.path.exists(constant.USER_CHAT_DELETION_PATH) and os.path.getsize(
+                    constant.USER_CHAT_DELETION_PATH) > 0):
                 with open(constant.USER_CHAT_DELETION_PATH) as ids_store:
                     try:
                         ids_collection = json.load(ids_store)
                         ids_collection["global_keys"] = ids_collection.get("global_keys") or []
-                        doc_ids_storage = ids_collection.get("global_keys")
+                        ids_list = ids_collection.get("global_keys")
                     except ValueError as exception:
                         self.logger.exception(
-                            f"Error while parsing the json file of the ids store from path: {constant.USER_CHAT_DELETION_PATH}. Error: {exception}"
+                            f"Error while parsing the json file of the ids store from path: \
+                                {constant.USER_CHAT_DELETION_PATH}. Error: {exception}"
                         )
             storage_with_collection["delete_keys"] = copy.deepcopy(ids_collection.get("global_keys"))
             # Logic to get user chat from Microsoft Team based on our last checkpoint.
             user_msg = ms_msg.MSTeamsUserMessage(self.access_token, self.get_schema_fields, self.logger, self.config)
-            user_permissions, chats = user_msg.get_user_chats(doc_ids_storage)
+            user_permissions, chats = user_msg.get_user_chats(ids_list)
 
             # Logic to index the permission for user chats
             if self.permission:
@@ -195,7 +202,9 @@ class Indexer:
                     start_time_partition = datelist[num]
                     end_time_partition = datelist[num + 1]
                     # Applying threading on fetching user chat messages
-                    chat_thread = thread_pool.apply_async(user_msg.get_user_chat_messages, (doc_ids_storage, user_drive, chats, start_time_partition, end_time_partition))
+                    chat_thread = thread_pool.apply_async(
+                        user_msg.get_user_chat_messages, (ids_list, user_drive, chats, start_time_partition,
+                                                          end_time_partition))
                     results.append(chat_thread)
 
                 # Fetches user chat messages from each thread
@@ -204,17 +213,19 @@ class Indexer:
 
                 thread_pool.close()
                 thread_pool.join()
-                self.threaded_index_documents(user_chat_documents, constant.USER_CHATS_MESSAGE)
+                self.threaded_index_documents(list(unique_everseen(user_chat_documents)), constant.USER_CHATS_MESSAGE)
 
             # Logic to update ms_teams_user_chat_doc_ids.json with latest data
-            storage_with_collection["global_keys"] = list(doc_ids_storage)
+            storage_with_collection["global_keys"] = list(ids_list)
             with open(constant.USER_CHAT_DELETION_PATH, "w") as f:
                 try:
                     json.dump(storage_with_collection, f, indent=4)
                 except ValueError as exception:
                     self.logger.warn(f'Error while adding ids to json file. Error: {exception}')
         except Exception as exception:
-            self.logger.exception(f"Error while indexing user chat, meeting chat, attachments, tabs and meeting recoding. Error: {exception}")
+            self.logger.exception(
+                f"Error while indexing user chat, meeting chat, attachments, tabs and meeting recoding. Error: \
+                    {exception}")
         self.logger.info("Completed indexing user chat, meeting chat, attachments, tabs and meeting recoding")
 
     def index_teams_and_children(self, teams_channels_obj):
@@ -224,19 +235,21 @@ class Indexer:
         self.logger.info("Start fetching and indexing the teams and it's objects data...")
         storage_with_collection = {"global_keys": [], "delete_keys": []}
         ids_collection = {}
-        doc_ids_storage = []
+        ids_list = []
 
         try:
             # Logic to read data from microsoft_teams_channel_chat_doc_ids.json file.
-            if (os.path.exists(constant.CHANNEL_CHAT_DELETION_PATH) and os.path.getsize(constant.CHANNEL_CHAT_DELETION_PATH) > 0):
+            if (os.path.exists(constant.CHANNEL_CHAT_DELETION_PATH) and os.path.getsize(
+                    constant.CHANNEL_CHAT_DELETION_PATH) > 0):
                 with open(constant.CHANNEL_CHAT_DELETION_PATH, encoding="UTF-8") as ids_store:
                     try:
                         ids_collection = json.load(ids_store)
                         ids_collection["global_keys"] = ids_collection.get("global_keys") or []
-                        doc_ids_storage = ids_collection.get("global_keys")
+                        ids_list = ids_collection.get("global_keys")
                     except ValueError as exception:
                         self.logger.exception(
-                            f"Error while parsing the json file of the ids store from path: {constant.CHANNEL_CHAT_DELETION_PATH}. Error: {exception}"
+                            f"Error while parsing the json file of the ids store from path: \
+                                {constant.CHANNEL_CHAT_DELETION_PATH}. Error: {exception}"
                         )
             storage_with_collection["delete_keys"] = copy.deepcopy(
                 ids_collection.get("global_keys"))
@@ -253,19 +266,20 @@ class Indexer:
 
             # Get teams and its objects from Microsoft Teams and index them
             # into workplace search.
-            teams = teams_channels_obj.get_all_teams(doc_ids_storage)
+            teams = teams_channels_obj.get_all_teams(ids_list)
             if "teams" in self.objects:
                 self.threaded_index_documents(teams, constant.TEAMS)
 
             # Get channels from Microsoft Teams and index them into
             # workplace search.
             if teams:
-                channels, documents = teams_channels_obj.get_team_channels(teams, doc_ids_storage)
+                channels, documents = teams_channels_obj.get_team_channels(teams, ids_list)
                 if "channels" in self.objects:
                     self.threaded_index_documents(documents, constant.CHANNELS)
 
                 if channels:
-                    thread_documents = {constant.CHANNEL_MESSAGES: [], constant.CHANNEL_DOCUMENTS: [], constant.CHANNEL_TABS: []}
+                    thread_documents = {constant.CHANNEL_MESSAGES: [],
+                                        constant.CHANNEL_DOCUMENTS: [], constant.CHANNEL_TABS: []}
                     channel_message_results, channel_tab_results, channel_documents_results = [], [], []
                     _, datelist = split_date_range_into_chunks(start_time, end_time, self.max_threads)
 
@@ -276,24 +290,27 @@ class Indexer:
 
                         # Applying threading on fetching channel messages
                         if is_exists_channel_message:
-                            message_thread = thread_pool.apply_async(teams_channels_obj.get_channel_messages,
-                                                                        (channels, doc_ids_storage, start_time_partition, end_time_partition))
+                            message_thread = thread_pool.apply_async(
+                                teams_channels_obj.get_channel_messages,
+                                (channels, ids_list, start_time_partition, end_time_partition))
                             channel_message_results.append(message_thread)
 
                         # Applying threading on fetching channel tabs
                         if is_exists_channel_tabs:
-                            tabs_thread = thread_pool.apply_async(teams_channels_obj.get_channel_tabs,
-                                                                    (channels, doc_ids_storage, start_time_partition, end_time_partition))
+                            tabs_thread = thread_pool.apply_async(
+                                teams_channels_obj.get_channel_tabs,
+                                (channels, ids_list, start_time_partition, end_time_partition))
                             channel_tab_results.append(tabs_thread)
 
                         # Applying threading on fetching channel documents
                         if is_exists_channel_documents:
-                            documents_thread = thread_pool.apply_async(teams_channels_obj.get_channel_documents,
-                                                                        (teams, doc_ids_storage, start_time_partition, end_time_partition))
+                            documents_thread = thread_pool.apply_async(
+                                teams_channels_obj.get_channel_documents,
+                                (teams, ids_list, start_time_partition, end_time_partition))
                             channel_documents_results.append(documents_thread)
 
                         # Fetches channel messages from each thread
-                        channel_messages_thread_results =  get_thread_results(channel_message_results)
+                        channel_messages_thread_results = get_thread_results(channel_message_results)
                         thread_documents[constant.CHANNEL_MESSAGES].extend(channel_messages_thread_results)
 
                         # Fetches channel tabs from each thread
@@ -303,18 +320,21 @@ class Indexer:
                         # Fetches channel documents from each thread
                         channel_documents_thread_results = get_thread_results(channel_documents_results)
                         thread_documents[constant.CHANNEL_DOCUMENTS].extend(channel_documents_thread_results)
-                    
+
                     thread_pool.close()
                     thread_pool.join()
 
                     if is_exists_channel_message:
-                        self.threaded_index_documents(thread_documents[constant.CHANNEL_MESSAGES], constant.CHANNEL_MESSAGES)
+                        self.threaded_index_documents(list(unique_everseen(
+                            thread_documents[constant.CHANNEL_MESSAGES])), constant.CHANNEL_MESSAGES)
                     if is_exists_channel_tabs:
-                        self.threaded_index_documents(thread_documents[constant.CHANNEL_TABS], constant.CHANNEL_TABS)
+                        self.threaded_index_documents(list(unique_everseen(
+                            thread_documents[constant.CHANNEL_TABS])), constant.CHANNEL_TABS)
                     if is_exists_channel_documents:
-                        self.threaded_index_documents(list(unique_everseen(thread_documents[constant.CHANNEL_DOCUMENTS])), constant.CHANNEL_DOCUMENTS)
+                        self.threaded_index_documents(list(unique_everseen(
+                            thread_documents[constant.CHANNEL_DOCUMENTS])), constant.CHANNEL_DOCUMENTS)
 
-            storage_with_collection["global_keys"] = list(doc_ids_storage)
+            storage_with_collection["global_keys"] = list(ids_list)
             with open(constant.CHANNEL_CHAT_DELETION_PATH, "w", encoding="UTF-8") as f:
                 try:
                     json.dump(storage_with_collection, f, indent=4)
@@ -328,7 +348,8 @@ class Indexer:
         """ This method is responsible for indexing teams and channel objects
         """
         teams_channels_obj = MSTeamsChannels(self.access_token, self.get_schema_fields, self.logger, self.config)
-        if any(obj in self.objects for obj in ["teams", "channels", "channel_messages", "channel_tabs", "channel_documents"]):
+        if any(obj in self.objects for obj in [
+                "teams", "channels", "channel_messages", "channel_tabs", "channel_documents"]):
             if self.permission:
                 members_list = teams_channels_obj.get_team_members()
                 for member, team_id_list in members_list.items():
@@ -344,29 +365,33 @@ class Indexer:
         self.logger.info("Start fetching and indexing the calendars...")
         storage_with_collection = {"global_keys": [], "delete_keys": []}
         ids_collection = {}
-        doc_ids_storage = []
+        ids_list = []
         try:
             # Logic to read data from microsoft_teams_channel_chat_doc_ids.json file.
-            if (os.path.exists(constant.CALENDAR_CHAT_DELETION_PATH) and os.path.getsize(constant.CALENDAR_CHAT_DELETION_PATH) > 0):
+            if (os.path.exists(constant.CALENDAR_CHAT_DELETION_PATH) and os.path.getsize(
+                    constant.CALENDAR_CHAT_DELETION_PATH) > 0):
                 with open(constant.CALENDAR_CHAT_DELETION_PATH, encoding="UTF-8") as ids_store:
                     try:
                         ids_collection = json.load(ids_store)
                         ids_collection["global_keys"] = ids_collection.get("global_keys") or []
-                        doc_ids_storage = ids_collection.get("global_keys") or []
+                        ids_list = ids_collection.get("global_keys") or []
                     except ValueError as exception:
                         self.logger.exception(
-                            f"Error while parsing the json file of the ids store from path: {constant.CALENDAR_CHAT_DELETION_PATH}. Error: {exception}"
+                            f"Error while parsing the json file of the ids store from path: \
+                                {constant.CALENDAR_CHAT_DELETION_PATH}. Error: {exception}"
                         )
             storage_with_collection["delete_keys"] = copy.deepcopy(
                 ids_collection.get("global_keys"))
-            # Logic to get user chat, meeting chat, attachments, tabs and meeting recoding from Microsoft Team based on our last checkpoint.
-            user_msg = cal.MSTeamsCalendar(self.access_token, start_time, end_time, self.get_schema_fields, self.logger, self.config)
-            calendar_permissions, documents = user_msg.get_calendars(doc_ids_storage)
+            # Logic to get user chat, meeting chat, attachments, tabs and meeting recoding from Microsoft Team based
+            # on our last checkpoint.
+            user_msg = cal.MSTeamsCalendar(self.access_token, start_time, end_time,
+                                           self.get_schema_fields, self.logger, self.config)
+            calendar_permissions, documents = user_msg.get_calendars(ids_list)
             if self.permission:
                 for member, id in calendar_permissions.items():
                     self.index_permissions(member, id)
             self.threaded_index_documents(documents, constant.CALENDAR)
-            storage_with_collection["global_keys"] = list(doc_ids_storage)
+            storage_with_collection["global_keys"] = list(ids_list)
             with open(constant.CALENDAR_CHAT_DELETION_PATH, "w", encoding="UTF-8") as f:
                 try:
                     json.dump(storage_with_collection, f, indent=4)
