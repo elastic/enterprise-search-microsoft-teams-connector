@@ -11,7 +11,6 @@
 import copy
 import csv
 import json
-import multiprocessing
 import os
 from multiprocessing.pool import ThreadPool
 
@@ -19,8 +18,6 @@ import pandas as pd
 from iteration_utilities import unique_everseen
 
 from . import constant
-from . import microsoft_teams_calendars as cal
-from . import microsoft_teams_user_messages as ms_msg
 from .adapter import DEFAULT_SCHEMA
 from .checkpointing import Checkpoint
 from .microsoft_teams_channels import MSTeamsChannels
@@ -155,79 +152,6 @@ class Indexer:
         user_name = rows.get(user, user)
         self.workplace_add_permission(user_name, roles)
 
-    def index_user_chats(self, user_drive):
-        """ This method is used to index the user chats into Workplace Search.
-            :param user_drive: Dictionary of dictionary
-        """
-        self.logger.info("Started indexing user chat, meeting chat, attachments, tabs and meeting recoding")
-        storage_with_collection = {"global_keys": [], "delete_keys": []}
-        ids_collection = {}
-        ids_list = []
-        try:
-            # Logic to read data from microsoft_teams_user_chat_doc_ids.json file.
-            if (os.path.exists(constant.USER_CHAT_DELETION_PATH) and os.path.getsize(
-                    constant.USER_CHAT_DELETION_PATH) > 0):
-                with open(constant.USER_CHAT_DELETION_PATH) as ids_store:
-                    try:
-                        ids_collection = json.load(ids_store)
-                        ids_collection["global_keys"] = ids_collection.get("global_keys") or []
-                        ids_list = ids_collection.get("global_keys")
-                    except ValueError as exception:
-                        self.logger.exception(
-                            f"Error while parsing the json file of the ids store from path: \
-                                {constant.USER_CHAT_DELETION_PATH}. Error: {exception}"
-                        )
-            storage_with_collection["delete_keys"] = copy.deepcopy(ids_collection.get("global_keys"))
-            # Logic to get user chat from Microsoft Team based on our last checkpoint.
-            user_msg = ms_msg.MSTeamsUserMessage(self.access_token, self.get_schema_fields, self.logger, self.config)
-            user_permissions, chats = user_msg.get_user_chats(ids_list)
-
-            # Logic to index the permission for user chats
-            if self.permission:
-                for id, mem_dict in user_permissions.items():
-                    self.index_permissions(id, mem_dict)
-
-            if chats:
-                if self.indexing_type == "incremental":
-                    start_time, end_time = self.checkpoint.get_checkpoint(
-                        constant.CURRENT_TIME, "user_chats")
-                else:
-                    start_time = self.config.get_value("start_time")
-                    end_time = constant.CURRENT_TIME
-                # Create partitions of whole timerange based on the maximum threads defined by user in config file
-                _, datelist = split_date_range_into_chunks(start_time, end_time, self.max_threads)
-                thread_pool = ThreadPool(self.max_threads)
-                user_chat_documents, results = [], []
-                for num in range(0, self.max_threads):
-                    start_time_partition = datelist[num]
-                    end_time_partition = datelist[num + 1]
-                    # Applying threading on fetching user chat messages
-                    chat_thread = thread_pool.apply_async(
-                        user_msg.get_user_chat_messages, (ids_list, user_drive, chats, start_time_partition,
-                                                          end_time_partition))
-                    results.append(chat_thread)
-
-                # Fetches user chat messages from each thread
-                user_chats_thread_results = get_thread_results(results)
-                user_chat_documents.extend(user_chats_thread_results)
-
-                thread_pool.close()
-                thread_pool.join()
-                self.threaded_index_documents(list(unique_everseen(user_chat_documents)), constant.USER_CHATS_MESSAGE)
-
-            # Logic to update ms_teams_user_chat_doc_ids.json with latest data
-            storage_with_collection["global_keys"] = list(ids_list)
-            with open(constant.USER_CHAT_DELETION_PATH, "w") as f:
-                try:
-                    json.dump(storage_with_collection, f, indent=4)
-                except ValueError as exception:
-                    self.logger.warn(f'Error while adding ids to json file. Error: {exception}')
-        except Exception as exception:
-            self.logger.exception(
-                f"Error while indexing user chat, meeting chat, attachments, tabs and meeting recoding. Error: \
-                    {exception}")
-        self.logger.info("Completed indexing user chat, meeting chat, attachments, tabs and meeting recoding")
-
     def index_teams_and_children(self, teams_channels_obj):
         """ This method is used to index teams, channels and it's objects data
             :param teams_channels_obj: Microsoft Teams channels objects
@@ -356,51 +280,6 @@ class Indexer:
                     self.index_permissions(member, team_id_list)
             self.index_teams_and_children(teams_channels_obj)
 
-    def index_calendar(self, start_time, end_time):
-        """ This method is used to index the user calendar events into Workplace Search.
-            :param workplace_search_client: Cached workplace_search client object
-            :param config: Configuration object
-            :param logger: Logger object
-        """
-        self.logger.info("Start fetching and indexing the calendars...")
-        storage_with_collection = {"global_keys": [], "delete_keys": []}
-        ids_collection = {}
-        ids_list = []
-        try:
-            # Logic to read data from microsoft_teams_channel_chat_doc_ids.json file.
-            if (os.path.exists(constant.CALENDAR_CHAT_DELETION_PATH) and os.path.getsize(
-                    constant.CALENDAR_CHAT_DELETION_PATH) > 0):
-                with open(constant.CALENDAR_CHAT_DELETION_PATH, encoding="UTF-8") as ids_store:
-                    try:
-                        ids_collection = json.load(ids_store)
-                        ids_collection["global_keys"] = ids_collection.get("global_keys") or []
-                        ids_list = ids_collection.get("global_keys") or []
-                    except ValueError as exception:
-                        self.logger.exception(
-                            f"Error while parsing the json file of the ids store from path: \
-                                {constant.CALENDAR_CHAT_DELETION_PATH}. Error: {exception}"
-                        )
-            storage_with_collection["delete_keys"] = copy.deepcopy(
-                ids_collection.get("global_keys"))
-            # Logic to get user chat, meeting chat, attachments, tabs and meeting recoding from Microsoft Team based
-            # on our last checkpoint.
-            user_msg = cal.MSTeamsCalendar(self.access_token, start_time, end_time,
-                                           self.get_schema_fields, self.logger, self.config)
-            calendar_permissions, documents = user_msg.get_calendars(ids_list)
-            if self.permission:
-                for member, id in calendar_permissions.items():
-                    self.index_permissions(member, id)
-            self.threaded_index_documents(documents, constant.CALENDAR)
-            storage_with_collection["global_keys"] = list(ids_list)
-            with open(constant.CALENDAR_CHAT_DELETION_PATH, "w", encoding="UTF-8") as f:
-                try:
-                    json.dump(storage_with_collection, f, indent=4)
-                except ValueError as exception:
-                    self.logger.warn(f'Error while adding ids to json file. Error: {exception}')
-        except Exception as exception:
-            self.logger.exception(f"Error while indexing the calendars. Error: {exception}")
-        self.logger.info("Completed indexing calendars to the Workplace Search")
-
 
 def init_indexing(indexing_type, config, access_token, workplace_search_client, logger, calendar_token=""):
     """ This method manages the multithreading in the Microsoft Teams objects
@@ -411,7 +290,6 @@ def init_indexing(indexing_type, config, access_token, workplace_search_client, 
         :param logger: Logger object
         :param calendar_token: Microsoft Teams calendar access token
     """
-    user_drive = multiprocessing.Manager().dict()
     obj_permissions_list = ["teams", "channels", "channel_messages", "channel_tabs", "channel_documents"]
     checkpoint = Checkpoint(logger, config)
 
@@ -419,30 +297,10 @@ def init_indexing(indexing_type, config, access_token, workplace_search_client, 
     if any(obj in config.get_value('objects') for obj in obj_permissions_list):
         indexer.index_teams_channels()
 
-    if "user_chats" in config.get_value('objects'):
-        indexer.index_user_chats(user_drive)
-
-    if "calendar" in config.get_value('objects'):
-        if indexing_type == "incremental":
-            start_time_cal, end_time_cal = checkpoint.get_checkpoint(
-                constant.CURRENT_TIME, "calendar")
-        else:
-            start_time_cal = config.get_value("start_time")
-            end_time_cal = constant.CURRENT_TIME
-        indexer_cal = Indexer(calendar_token, workplace_search_client, indexing_type, config, logger, checkpoint)
-        indexer_cal.index_calendar(start_time_cal, end_time_cal)
-
     logger.info("Saving the checkpoints")
     # Setting the checkpoint for Teams
     _, end_time_teams = checkpoint.get_checkpoint(constant.CURRENT_TIME, "teams")
     checkpoint.set_checkpoint(end_time_teams, indexing_type, "teams")
-
-    # Setting the checkpoint for User Chats
-    _, end_time_chats = checkpoint.get_checkpoint(constant.CURRENT_TIME, "user_chats")
-    checkpoint.set_checkpoint(end_time_chats, indexing_type, "user_chats")
-
-    # Setting the checkpoint for Calendar
-    checkpoint.set_checkpoint(end_time_cal, indexing_type, "calendar")
 
 
 def start(indexing_type, config, logger, workplace_search_client):
