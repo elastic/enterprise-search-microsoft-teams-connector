@@ -10,25 +10,24 @@
 
 import copy
 import csv
-import json
+import multiprocessing
 import os
 from multiprocessing.pool import ThreadPool
+from .local_storage import LocalStorage
 
-import pandas as pd
 from iteration_utilities import unique_everseen
 
 from . import constant
-from .adapter import DEFAULT_SCHEMA
 from .checkpointing import Checkpoint
 from .microsoft_teams_channels import MSTeamsChannels
 from .msal_access_token import MSALAccessToken
 from .permission_sync_command import PermissionSyncCommand
 from .utils import (get_thread_results, split_date_range_into_chunks,
-                    split_list_into_buckets)
+                    split_list_into_buckets, get_schema_fields, get_records_by_types, is_document_in_present_data)
 
 
 class Indexer:
-    """ This class is responsible for indexing the Microsoft Teams objects and it's permissions to the Workplace Search.
+    """Indexes the Microsoft Teams objects and its permissions to the Workplace Search.
     """
 
     def __init__(self, access_token, workplace_search_client, indexing_type, config, logger, checkpoint):
@@ -42,51 +41,14 @@ class Indexer:
         self.ws_source = config.get_value("enterprise_search.source_id")
         self.checkpoint = checkpoint
         self.indexing_type = indexing_type
-
-    def get_schema_fields(self, document_name):
-        """ Returns the schema of all the include_fields or exclude_fields specified in the configuration file.
-            :param document_name: Document name from teams, channels, channel_messages, channel_tabs,
-                channel_documents, calendar and user_chats
-            Returns:
-                schema: Included and excluded fields schema
-        """
-        fields = self.objects.get(document_name)
-        adapter_schema = DEFAULT_SCHEMA[document_name]
-        field_id = adapter_schema['id']
-        if fields:
-            include_fields = fields.get("include_fields")
-            exclude_fields = fields.get("exclude_fields")
-            if include_fields:
-                adapter_schema = {key: val for key, val in adapter_schema.items() if val in include_fields}
-            elif exclude_fields:
-                adapter_schema = {key: val for key, val in adapter_schema.items() if val not in exclude_fields}
-            adapter_schema['id'] = field_id
-        return adapter_schema
-
-    def get_records_by_types(self, document):
-        """This method is used to for grouping the document based on their type
-           :param document: Document to be indexed
-           Returns:
-                df_dict: Dictionary of type with its count
-        """
-        df = pd.DataFrame(document)
-        df_size = df.groupby('type').size()
-        df_dict = df_size.to_dict()
-        return df_dict
-
-    def filter_removed_item_by_id(self, item, id):
-        """This method is used filter removed document by id
-           :param item: Pass document
-           :param id: Pass id of the document which having error from workplace search
-        """
-        return item["id"] == id
+        self.local_storage = LocalStorage(self.logger)
 
     def bulk_index_documents(self, documents):
-        """ This method indexes the documents to the workplace.
+        """ Indexes the documents to the Workplace Search
             :param documents: Documents to be indexed into the Workplace Search
         """
         if documents:
-            total_records_dict = self.get_records_by_types(documents)
+            total_records_dict = get_records_by_types(documents)
             for chunk in split_list_into_buckets(documents, constant.BATCH_SIZE):
                 response = self.workplace_search_client.index_documents(
                     content_source_id=self.ws_source,
@@ -94,20 +56,19 @@ class Indexer:
                 )
                 for each in response['results']:
                     if each['errors']:
-                        item = list(filter(lambda seq: self.filter_removed_item_by_id(seq, each['id']), documents))
+                        item = list(filter(lambda seq: is_document_in_present_data(seq, each['id'], "id"), documents))
                         documents.remove(item[0])
                         self.logger.error(f"Error while indexing {each['id']}. Error: {each['errors']}")
-            total_inserted_record_dict = self.get_records_by_types(documents)
+            total_inserted_record_dict = get_records_by_types(documents)
             for type, count in total_records_dict.items():
                 self.logger.info(f"Total {total_inserted_record_dict[type]} {type} indexed out of {count}.")
 
     def threaded_index_documents(self, documents, object_type):
-        """ This method is used to index the documents to the Workplace
-            Search using multithreading
+        """ Indexes the documents to the Workplace Search using multithreading
             :param documents: Documents to be indexed equally in each thread
             :param object_type: Type of object to be indexed
         """
-        self.logger.info(f"Indexing the {object_type} to the Workplace Search")
+        self.logger.debug(f"Indexing the {object_type} to the Workplace Search")
         chunk_documents = split_list_into_buckets(documents, self.max_threads)
         thread_pool = ThreadPool(self.max_threads)
         for doc in chunk_documents:
@@ -117,10 +78,9 @@ class Indexer:
         thread_pool.join()
 
     def workplace_add_permission(self, user_name, permissions):
-        """ This method used to index the user permissions into Workplace Search
-            for the user in parameter user_name
-            :param user_name: A string value denoting the username of the user
-            :param permission: Permission that needs to be provided to the user
+        """ Indexes the user permissions into the Workplace Search
+            :param user_name: A string value denoting the Workplace Search username
+            :param permissions: Permission that needs to be provided to the user
         """
         try:
             self.workplace_search_client.add_user_permissions(
@@ -130,33 +90,34 @@ class Indexer:
                     "permissions": permissions
                 },
             )
-            self.logger.info(f"Successfully indexed the permissions for user {user_name} to the workplace")
+            self.logger.info(f"Successfully indexed the permissions for user {user_name} to the Workplace Search")
         except Exception as exception:
             self.logger.exception(
-                f"Error while indexing the permissions for user:{user_name} to the workplace. Error: {exception}")
+                f"Error while indexing the permissions for user {user_name} to the Workplace Search. \
+                    Error: {exception}")
             raise exception
 
-    def index_permissions(self, user, roles):
-        """ This method is used to map the Microsoft Teams users to workplace search
-            users and responsible to call the user permissions indexer method
+    def index_permissions(self, users, permissions):
+        """ Maps the Microsoft Teams users to Workplace Search users and indexes the permissions
+            for those users
             :param users: Users for indexing the permissions
-            :param roles: User roles
+            :param permissions: User permissions
         """
         rows = {}
-        mapping_sheet_path = self.config.get_value("msteams_workplace_user_mapping")
+        mapping_sheet_path = self.config.get_value("microsoft_teams.user_mapping")
         if (mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0):
             with open(mapping_sheet_path, encoding="UTF-8") as file:
                 csvreader = csv.reader(file)
                 for row in csvreader:
                     rows[row[0]] = row[1]
-        user_name = rows.get(user, user)
-        self.workplace_add_permission(user_name, roles)
+        user_name = rows.get(users, users)
+        self.workplace_add_permission(user_name, permissions)
 
     def index_teams_and_children(self, teams_channels_obj):
-        """ This method is used to index teams, channels and it's objects data
-            :param teams_channels_obj: Microsoft Teams channels objects
+        """ Indexes the teams, channels and its objects data into the Workplace Search
+            :param teams_channels_obj: Microsoft Teams and channels class objects
         """
-        self.logger.info("Start fetching and indexing the teams and it's objects data...")
+        self.logger.debug("Started fetching and indexing the teams and its objects data...")
         storage_with_collection = {"global_keys": [], "delete_keys": []}
         ids_collection = {}
         ids_list = []
@@ -165,16 +126,9 @@ class Indexer:
             # Logic to read data from microsoft_teams_channel_chat_doc_ids.json file.
             if (os.path.exists(constant.CHANNEL_CHAT_DELETION_PATH) and os.path.getsize(
                     constant.CHANNEL_CHAT_DELETION_PATH) > 0):
-                with open(constant.CHANNEL_CHAT_DELETION_PATH, encoding="UTF-8") as ids_store:
-                    try:
-                        ids_collection = json.load(ids_store)
-                        ids_collection["global_keys"] = ids_collection.get("global_keys") or []
-                        ids_list = ids_collection.get("global_keys")
-                    except ValueError as exception:
-                        self.logger.exception(
-                            f"Error while parsing the json file of the ids store from path: \
-                                {constant.CHANNEL_CHAT_DELETION_PATH}. Error: {exception}"
-                        )
+                ids_collection = self.local_storage.load_storage(constant.CHANNEL_CHAT_DELETION_PATH)
+                ids_collection["global_keys"] = ids_collection.get("global_keys") or []
+                ids_list = ids_collection.get("global_keys")
             storage_with_collection["delete_keys"] = copy.deepcopy(
                 ids_collection.get("global_keys"))
 
@@ -215,22 +169,22 @@ class Indexer:
                         # Applying threading on fetching channel messages
                         if is_exists_channel_message:
                             message_thread = thread_pool.apply_async(
-                                teams_channels_obj.get_channel_messages,
-                                (channels, ids_list, start_time_partition, end_time_partition))
+                                teams_channels_obj.get_channel_messages, (
+                                    channels, ids_list, start_time_partition, end_time_partition))
                             channel_message_results.append(message_thread)
 
                         # Applying threading on fetching channel tabs
                         if is_exists_channel_tabs:
                             tabs_thread = thread_pool.apply_async(
-                                teams_channels_obj.get_channel_tabs,
-                                (channels, ids_list, start_time_partition, end_time_partition))
+                                teams_channels_obj.get_channel_tabs, (
+                                    channels, ids_list, start_time_partition, end_time_partition))
                             channel_tab_results.append(tabs_thread)
 
                         # Applying threading on fetching channel documents
                         if is_exists_channel_documents:
                             documents_thread = thread_pool.apply_async(
-                                teams_channels_obj.get_channel_documents,
-                                (teams, ids_list, start_time_partition, end_time_partition))
+                                teams_channels_obj.get_channel_documents, (
+                                    teams, ids_list, start_time_partition, end_time_partition))
                             channel_documents_results.append(documents_thread)
 
                         # Fetches channel messages from each thread
@@ -259,19 +213,15 @@ class Indexer:
                             thread_documents[constant.CHANNEL_DOCUMENTS])), constant.CHANNEL_DOCUMENTS)
 
             storage_with_collection["global_keys"] = list(ids_list)
-            with open(constant.CHANNEL_CHAT_DELETION_PATH, "w", encoding="UTF-8") as f:
-                try:
-                    json.dump(storage_with_collection, f, indent=4)
-                except ValueError as exception:
-                    self.logger.warn(f'Error while adding document ids to json file. Error: {exception}')
+            self.local_storage.update_storage(storage_with_collection, constant.CHANNEL_CHAT_DELETION_PATH)
         except Exception as exception:
-            self.logger.exception(f"Error while indexing the teams or it's objects data. Error: {exception}")
-        self.logger.info("Completed indexing teams and it's objects data to the Workplace Search")
+            self.logger.exception(f"Error while indexing the teams or its objects data. Error: {exception}")
+        self.logger.info("Completed indexing of teams and its objects data to the Workplace Search")
 
     def index_teams_channels(self):
-        """ This method is responsible for indexing teams and channel objects
+        """ Indexing the teams related permissions and documents to the Workplace Search
         """
-        teams_channels_obj = MSTeamsChannels(self.access_token, self.get_schema_fields, self.logger, self.config)
+        teams_channels_obj = MSTeamsChannels(self.access_token, get_schema_fields, self.logger, self.config)
         if any(obj in self.objects for obj in [
                 "teams", "channels", "channel_messages", "channel_tabs", "channel_documents"]):
             if self.permission:
@@ -281,14 +231,14 @@ class Indexer:
             self.index_teams_and_children(teams_channels_obj)
 
 
-def init_indexing(indexing_type, config, access_token, workplace_search_client, logger, calendar_token=""):
-    """ This method manages the multithreading in the Microsoft Teams objects
+def init_indexer(indexing_type, config, access_token, workplace_search_client, logger, calendar_token=""):
+    """ Manages the multithreading in the Microsoft Teams objects
         :param indexing_type: Type of indexing (full sync or incremental)
         :param config: Configuration values
         :param access_token: Microsoft Teams access token
         :param workplace_search_client: Cached workplace_search client object
         :param logger: Logger object
-        :param calendar_token: Microsoft Teams calendar access token
+        :param calendar_token: Access token for accessing the calendar related Graph APIs
     """
     obj_permissions_list = ["teams", "channels", "channel_messages", "channel_tabs", "channel_documents"]
     checkpoint = Checkpoint(logger, config)
@@ -297,21 +247,20 @@ def init_indexing(indexing_type, config, access_token, workplace_search_client, 
     if any(obj in config.get_value('objects') for obj in obj_permissions_list):
         indexer.index_teams_channels()
 
-    logger.info("Saving the checkpoints")
-    # Setting the checkpoint for Teams
-    _, end_time_teams = checkpoint.get_checkpoint(constant.CURRENT_TIME, "teams")
-    checkpoint.set_checkpoint(end_time_teams, indexing_type, "teams")
+        logger.debug("Saving the checkpoint for teams and its objects")
+        # Setting the checkpoint for Teams
+        _, end_time_teams = checkpoint.get_checkpoint(constant.CURRENT_TIME, "teams")
+        checkpoint.set_checkpoint(end_time_teams, indexing_type, "teams")
 
 
 def start(indexing_type, config, logger, workplace_search_client):
-    """ Runs the indexing logic regularly after a given interval
-        or puts the connector to sleep
+    """ Starts the execution of the indexing process
         :param indexing_type: The type of the indexing i.e. Incremental Sync or Full sync
         :param config: Configuration object
         :param logger: Cached logger object
         :param workplace_search_client: Cached workplace_search client object
     """
-    logger.info("Starting the indexing...")
+    logger.debug("Started the indexing of Microsoft Teams documents...")
     calendar_token = ""
     if config.get_value("enable_document_permission"):
         PermissionSyncCommand(logger, config, workplace_search_client).remove_all_permissions()
@@ -323,4 +272,4 @@ def start(indexing_type, config, logger, workplace_search_client):
     if "calendar" in config.get_value("objects"):
         calendar_token = token.get_token(is_acquire_for_client=True)
     token = token.get_token()
-    init_indexing(indexing_type, config, token, workplace_search_client, logger, calendar_token=calendar_token)
+    init_indexer(indexing_type, config, token, workplace_search_client, logger, calendar_token=calendar_token)

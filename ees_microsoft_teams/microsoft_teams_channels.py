@@ -31,6 +31,7 @@ class MSTeamsChannels:
         self.client = MSTeamsClient(logger, self.access_token, config)
         self.get_schema_fields = get_schema_fields
         self.logger = logger
+        self.objects = config.get_value('objects')
         self.permission = config.get_value("enable_document_permission")
 
     def get_all_teams(self, ids_list):
@@ -41,12 +42,12 @@ class MSTeamsChannels:
         """
         documents = []
         teams_url = f"{constant.GRAPH_BASE_URL}/groups"
-        self.logger.info("Fetching teams from Microsoft Teams...")
+        self.logger.info("Fetching the teams from Microsoft Teams...")
         team_response = self.client.get(teams_url, constant.TEAMS, True, False, page_size=999, filter_query="/")
         team_response_data = check_response(self.logger, team_response, "Could not fetch the teams from Microsoft \
             Teams", "Error while fetching the teams from Microsoft Teams")
         if team_response_data:
-            team_schema = self.get_schema_fields("teams")
+            team_schema = self.get_schema_fields("teams", self.objects)
             for team in team_response_data:
                 # Logic to append teams for deletion
                 insert_document_into_doc_id_storage(ids_list, team["id"], constant.TEAMS, "", "")
@@ -90,7 +91,7 @@ class MSTeamsChannels:
         return member_list
 
     def get_team_channels(self, teams, ids_list):
-        """ Fetches all the team channels from Microsoft Teams
+        """ Fetches all the team channels from the Microsoft Teams
             :param teams: List of dictionaries containing the team details
             :param ids_list: Shared storage for storing the document ids
             Returns:
@@ -110,7 +111,7 @@ class MSTeamsChannels:
                 f"Could not fetch the channels for team: {team_name}",
                 f"Error while fetching the channels for team: {team_name}")
             if channel_response_data:
-                channel_schema = self.get_schema_fields("channels")
+                channel_schema = self.get_schema_fields("channels", self.objects)
                 channels_by_team = {team_id: []}
                 for channel in channel_response_data:
                     # Logic to append channels for deletion
@@ -126,7 +127,7 @@ class MSTeamsChannels:
         return documents_with_teams, documents
 
     def get_channel_messages(self, channels, ids_list, start_time, end_time):
-        """ Fetches all the channel messages from Microsoft Teams
+        """ Fetches all the channel messages from the Microsoft Teams
             :param channels: All channels from Microsoft Teams
             :param ids_list: Shared storage for storing the document ids
             :param start_time: Starting time for fetching data
@@ -135,7 +136,7 @@ class MSTeamsChannels:
                 documents: List of dictionaries containing the channel messages details
         """
         documents = []
-        self.logger.info(
+        self.logger.debug(
             f"Fetching channel messages for the interval of start time: {start_time} and end time: {end_time}.")
         for each in channels:
             for team_id, channel_list in each.items():
@@ -152,7 +153,7 @@ class MSTeamsChannels:
                             self.logger, message_response, f"Could not fetch the messages for channel: {channel_name}",
                             f"Error while fetching the messages for channel: {channel_name}")
                         if message_response_data:
-                            channel_message_schema = self.get_schema_fields("channel_messages")
+                            channel_message_schema = self.get_schema_fields("channel_messages", self.objects)
                             for message_dict in message_response_data:
                                 message_data = {"type": constant.CHANNEL_MESSAGES}
                                 if not message_dict["deletedDateTime"]:
@@ -220,7 +221,7 @@ class MSTeamsChannels:
         return documents
 
     def get_message_replies(self, team_id, channel_id, message_id, start_time, end_time):
-        """ Fetches the replies of a channel message.
+        """ Fetches the replies of a specific channel message.
             :param team_id: Team id
             :param channel_id: Channel id
             :param message_id: Parent message id
@@ -248,7 +249,7 @@ class MSTeamsChannels:
         return message_body
 
     def get_channel_tabs(self, channels, ids_list, start_time, end_time):
-        """ Fetched the channel tabs from Microsoft Teams.
+        """ Fetches the channel tabs from the Microsoft Teams.
             :param channels: All channels from Microsoft Teams
             :param ids_list: Shared storage for storing the document ids
             :param start_time: Starting time for fetching data
@@ -257,7 +258,7 @@ class MSTeamsChannels:
                 documents: Documents to be indexed in Workplace Search
         """
         documents = []
-        self.logger.info(
+        self.logger.debug(
             f"Fetching channel tabs for the interval of start time: {start_time} and end time: {end_time}.")
         for each in channels:
             for team_id, channel_list in each.items():
@@ -274,7 +275,7 @@ class MSTeamsChannels:
                         self.logger, tabs_response, f"Could not fetch tabs for channel: {channel_name}",
                         f"Error while fetching tabs for channel: {channel_name}")
                     if tabs_response_data:
-                        tabs_schema = self.get_schema_fields("channel_tabs")
+                        tabs_schema = self.get_schema_fields("channel_tabs", self.objects)
                         for tabs_dict in tabs_response_data:
                             # Logic to append channel tabs for deletion
                             insert_document_into_doc_id_storage(
@@ -291,7 +292,7 @@ class MSTeamsChannels:
         return documents
 
     def get_channel_documents(self, teams, ids_list, start_time, end_time):
-        """ Fetches all the channel documents from Microsoft Teams
+        """ Fetches all the channel documents from the Microsoft Teams
             :param teams: List of dictionaries containing the team details
             :param ids_list: Shared storage for storing the document ids
             :param start_time: Starting time for fetching data
@@ -300,7 +301,7 @@ class MSTeamsChannels:
                 documents: Documents to be indexed in Workplace Search
         """
         documents = []
-        self.logger.info(
+        self.logger.debug(
             f"Fetching channel documents for the interval of start time: {start_time} and end time: {end_time}.")
         for team in teams:
             team_id = team["id"]
@@ -337,7 +338,7 @@ class MSTeamsChannels:
                             constant.DRIVE, True, False, page_size=5000, filter_query="/")
                         children_response_data = check_response(self.logger, children_response, "", "")
                         if children_response_data:
-                            document_schema = self.get_schema_fields("channel_documents")
+                            document_schema = self.get_schema_fields("channel_documents", self.objects)
                             for child in children_response_data:
                                 # Logic to append drive item ids for deletion
                                 insert_document_into_doc_id_storage(
@@ -354,7 +355,7 @@ class MSTeamsChannels:
     def get_folder_documents(
             self, team_id, drive_id, document_id, schema, documents, ids_list, parent_file_id, start_time,
             end_time):
-        """ This function is used to fetch the files from the folder recursively
+        """ Fetches the files from the folder recursively
             :param team_id: Team id
             :param drive_id: Drive id
             :param document_id: Folder id
