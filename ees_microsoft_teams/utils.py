@@ -10,10 +10,12 @@ import time
 import urllib.parse
 from datetime import datetime
 
+import pandas as pd
 from bs4 import BeautifulSoup
 from tika import parser
 
 from . import constant
+from .adapter import DEFAULT_SCHEMA
 
 TIMEOUT = 400
 
@@ -74,7 +76,7 @@ def check_response(logger, response, error_message, exception_message):
 
 
 def insert_document_into_doc_id_storage(ids_list, id, type, parent_id, super_parent_id):
-    """ This function is used to prepare item for deletion and insert into global variable.
+    """ Prepares the document dictionary for deletion and insert it into the global_keys of respective doc_ids.json.
         :param ids_list: Pass "global_keys" of microsoft_teams_user_chat_doc_ids.json,
             microsoft_teams_channel_chat_doc_ids.json and microsoft_teams_calendar_doc_ids.json
         :param id: Pass id of User Chat, User Chat Attachment, Calendar, Calendar Attachment, Teams, Channel Chat,
@@ -107,6 +109,7 @@ def retry(exception_list):
     def decorator(func):
         """This function used as a decorator.
         """
+
         def execute(self, *args, **kwargs):
             """This function execute the retry logic.
             """
@@ -116,8 +119,8 @@ def retry(exception_list):
                     return func(self, *args, **kwargs)
                 except exception_list as exception:
                     self.logger.exception(
-                        'Error while connecting to the Microsoft Teams. Retry count: %s out of %s. \
-                            Error: %s' % (retry, self.retry_count, exception)
+                        f'Error while connecting to the Microsoft Teams. Retry count: {retry} out of {self.retry_count}. \
+                            Error: {exception}'
                     )
                     time.sleep(2 ** retry)
                     retry += 1
@@ -168,3 +171,46 @@ def get_thread_results(thread_results):
         if result:
             thread_documents.extend(result)
     return thread_documents
+
+
+def get_schema_fields(document_name, objects):
+    """ Returns the schema of all the include_fields or exclude_fields specified in the configuration file.
+        :param document_name: Document name from Teams, Channels, Channel Messages, User Chats, etc.
+        Returns:
+            schema: Included and excluded fields schema
+    """
+    fields = objects.get(document_name)
+    adapter_schema = DEFAULT_SCHEMA[document_name]
+    field_id = adapter_schema['id']
+    if fields:
+        include_fields = fields.get("include_fields")
+        exclude_fields = fields.get("exclude_fields")
+        if include_fields:
+            adapter_schema = {
+                key: val for key, val in adapter_schema.items() if val in include_fields}
+        elif exclude_fields:
+            adapter_schema = {
+                key: val for key, val in adapter_schema.items() if val not in exclude_fields}
+        adapter_schema['id'] = field_id
+    return adapter_schema
+
+
+def get_records_by_types(documents):
+    """Groups the documents based on their object type
+        :param document: Documents to be indexed
+        Returns:
+            data_frame_dict: Dictionary of type with its count
+    """
+    data_frame = pd.DataFrame(documents)
+    data_frame_size = data_frame.groupby('type').size()
+    data_frame_dict = data_frame_size.to_dict()
+    return data_frame_dict
+
+
+def is_document_in_present_data(document, document_id, key):
+    """ Filters the child item while iterating over the document.
+        :param document: Document for comparision
+        :param document_id: Document id for comparision with doc_id document
+        :param key: Key for fetching the value
+    """
+    return document[key] == document_id

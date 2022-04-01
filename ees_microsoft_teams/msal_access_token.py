@@ -34,13 +34,13 @@ class MSALAccessToken:
         self.logger.info("Initializing the Token generation")
 
     def get_token(self, is_acquire_for_client=False):
-        """ Generates the access token to call Microsoft Graph APIs
+        """Generates the access token to call Microsoft Graph APIs
             :param is_acquire_for_client: Pass True if want to acquire token by using client_id, tenant_id and
                 secret_key
-        Returns:
-            access_token: Access token for authorization
+            Returns:
+                access_token: Access token for authorization
         """
-        self.logger.info(f'Generating the access token for the tenant ID: {self.config.get_value("tenant_id")}...')
+        self.logger.debug(f'Generating the access token for the tenant ID: {self.config.get_value("tenant_id")}...')
         authority = f'https://login.microsoftonline.com/{self.config.get_value("tenant_id")}'
 
         try:
@@ -57,7 +57,8 @@ class MSALAccessToken:
                 raise AccesstokenError(
                     "Could not generate the access token, please verify the Microsoft Teams configuration settings in \
                         configuration file.")
-            self.logger.info("Successfully generated the access token.")
+            self.logger.info(
+                f"Successfully generated the access token for the tenant ID: {self.config.get_value('tenant_id')}.")
             return token.get("access_token")
         except Exception as exception:
             raise AccesstokenError(f"Error while generating the access token. Error: {exception}")

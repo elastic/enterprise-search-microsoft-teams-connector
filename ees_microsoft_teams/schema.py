@@ -194,7 +194,7 @@ schema = {
         'default': 3,
         'min': 1
     },
-    'msteams_workplace_user_mapping': {
+    'microsoft_teams.user_mapping': {
         'required': False,
         'type': 'string'
     },

@@ -39,9 +39,9 @@ def test_ms_team(settings):
     """
     configs, logger = settings
     retry_count = configs.get_value("retry_count")
-    print("Starting Microsoft Teams connectivity tests..")
-    msal_access = MSALAccessToken(logger, configs)
-    access_token = msal_access.get_token()
+    print("Starting the connectivity test with Microsoft Teams...")
+    token_obj = MSALAccessToken(logger, configs)
+    access_token = token_obj.get_token()
     request_headers = {
         "accept": "application/json",
         "content-type": "application/json",
@@ -81,7 +81,7 @@ def test_ms_team(settings):
 
 @pytest.mark.workplace
 def test_workplace(settings):
-    """ Tests the connection to the Enterprise search host
+    """Tests the connection to the Enterprise search host
         :param settings: Configuration settings
     """
     configs, _ = settings
@@ -121,7 +121,7 @@ def test_workplace(settings):
 
 @pytest.mark.ingestion
 def test_ingestion(settings):
-    """ Tests the successful ingestion and deletion of a sample document to the Workplace search
+    """Tests the successful ingestion and deletion of a sample document to the Workplace Search
         :param settings: Configuration settings
     """
     configs, logger = settings
@@ -147,7 +147,7 @@ def test_ingestion(settings):
                 http_auth=configs.get_value("enterprise_search.api_key"),
                 content_source_id=configs.get_value("enterprise_search.source_id"),
                 documents=document,)
-            print("Successfully indexed a dummy document with id 1234 in the Workplace")
+            print("Successfully indexed a dummy document with id 1234 in the Workplace Search")
             break
         except Exception as exception:
             print(
@@ -189,4 +189,4 @@ def test_ingestion(settings):
                     assert False, f"Error while connecting to the Enterprise Search at {enterprise_search_host}"
                 retry += 1
 
-    print("Workplace ingestion tests completed..")
+    print("Workplace ingestion tests completed")

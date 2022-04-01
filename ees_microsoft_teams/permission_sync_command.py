@@ -21,7 +21,7 @@ class PermissionSyncCommand:
         self.config = config
 
     def remove_all_permissions(self):
-        """Removes all the permissions present in the workplace
+        """Removes all the permissions present in the Workplace Search
         """
         try:
             cal_ids = []
@@ -43,7 +43,7 @@ class PermissionSyncCommand:
             )
 
             if user_permission:
-                self.logger.info("Removing the permissions from the workplace...")
+                self.logger.debug("Removing the permissions from the Workplace Search...")
                 permission_list = user_permission['results']
                 for permission in permission_list:
                     permission_ids = list(set(permission['permissions']) - set(cal_ids))
@@ -54,7 +54,8 @@ class PermissionSyncCommand:
                             "permissions": permission_ids
                         }
                     )
-                self.logger.info("Successfully removed the permissions from the workplace.")
+                self.logger.info("Removed the permissions from the Workplace Search.")
         except Exception as exception:
-            self.logger.exception(f"Error while removing the permissions from the workplace. Error: {exception}")
+            self.logger.exception(
+                f"Error while removing the permissions from the Workplace Search. Error: {exception}")
             raise exception
