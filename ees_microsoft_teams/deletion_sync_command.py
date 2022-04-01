@@ -15,6 +15,7 @@ from .deletion import start
 class DeletionSyncCommand(BaseCommand):
     """This class start execution of deletion feature.
     """
+
     def execute(self):
         """This function execute the start function.
         """

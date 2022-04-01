@@ -16,17 +16,17 @@ from datetime import datetime
 from multiprocessing.pool import ThreadPool
 
 from . import constant
-from .adapter import DEFAULT_SCHEMA
 from .checkpointing import Checkpoint
 from .microsoft_teams_calendars import MSTeamsCalendar
 from .microsoft_teams_channels import MSTeamsChannels
 from .microsoft_teams_user_messages import MSTeamsUserMessage
 from .msal_access_token import MSALAccessToken
-from .utils import get_thread_results, split_date_range_into_chunks
+from .local_storage import LocalStorage
+from .utils import get_thread_results, split_date_range_into_chunks, get_schema_fields, is_document_in_present_data
 
 
 class Deletion:
-    """ This class is used to remove document from the workplace search
+    """Removes the documents from the Workplace Search.
     """
 
     def __init__(self, access_token, config, workplace_search_client, logger):
@@ -37,31 +37,11 @@ class Deletion:
         self.objects = config.get_value('objects')
         self.max_threads = config.get_value("max_threads")
         self.checkpoint = Checkpoint(logger, config)
+        self.local_storage = LocalStorage(self.logger)
 
-    def get_schema_fields(self, document_name):
-        """ returns the schema of all the include_fields or exclude_fields specified in the configuration file.
-            :param document_name: Document name from Teams, Channels, Channel Messages, User Chats, etc.
-            Returns:
-                schema: Included and excluded fields schema
-        """
-        fields = self.objects.get(document_name)
-        adapter_schema = DEFAULT_SCHEMA[document_name]
-        field_id = adapter_schema['id']
-        if fields:
-            include_fields = fields.get("include_fields")
-            exclude_fields = fields.get("exclude_fields")
-            if include_fields:
-                adapter_schema = {
-                    key: val for key, val in adapter_schema.items() if val in include_fields}
-            elif exclude_fields:
-                adapter_schema = {
-                    key: val for key, val in adapter_schema.items() if val not in exclude_fields}
-            adapter_schema['id'] = field_id
-        return adapter_schema
-
-    def delete_document(self, final_deleted_list):
-        """This method will delete all the documents of specified ids from workplace search
-           :param final_deleted_list: list of ids
+    def delete_documents(self, final_deleted_list):
+        """Deletes the documents of specified ids from Workplace Search
+           :param final_deleted_list: List of ids to delete the documents from Workplace Search
         """
         for index in range(0, len(final_deleted_list), constant.BATCH_SIZE):
             final_list = final_deleted_list[index:index + constant.BATCH_SIZE]
@@ -71,269 +51,224 @@ class Deletion:
                     content_source_id=self.config.get_value("enterprise_search.source_id"),
                     document_ids=final_list)
             except Exception as exception:
-                self.logger.exception(f"Error while deleting the documents to the workplace. Error: {exception}")
+                self.logger.exception(
+                    f"Error while deleting the documents to the Workplace Search. Error: {exception}")
                 return []
 
     def deletion_teams(self):
-        """ The purpose of this method is to delete the teams related documents from the workplace search.
+        """Deletes the teams related documents from the Workplace Search.
         """
         indexed_teams = []
         delete_keys_documents = []
         global_keys_documents = []
         list_ids_data = {"global_keys": [], "delete_keys": []}
 
-        self.logger.info(f"Started deletion process of teams and it's objects on {datetime.now()}")
+        self.logger.debug(f"Started the deletion process of teams and it's objects on {datetime.now()}")
 
         if (os.path.exists(constant.CHANNEL_CHAT_DELETION_PATH) and os.path.getsize(
                 constant.CHANNEL_CHAT_DELETION_PATH) > 0):
-            with open(constant.CHANNEL_CHAT_DELETION_PATH, encoding="UTF-8") as ids_store:
-                try:
-                    indexed_teams = json.load(ids_store)
-                    indexed_teams["delete_keys"] = indexed_teams.get("delete_keys") or []
-                    indexed_teams["global_keys"] = indexed_teams.get("global_keys") or []
-                    global_keys_documents = indexed_teams.get("global_keys")
-                except ValueError as exception:
-                    self.logger.exception(
-                        f"Error while reading teams data from the path: {constant.CHANNEL_CHAT_DELETION_PATH}. \
-                            Error: {exception}"
-                    )
+            indexed_teams = self.local_storage.load_storage(constant.CHANNEL_CHAT_DELETION_PATH)
+            indexed_teams["delete_keys"] = indexed_teams.get("delete_keys") or []
+            indexed_teams["global_keys"] = indexed_teams.get("global_keys") or []
+            global_keys_documents = indexed_teams.get("global_keys")
 
-                deleted_data = indexed_teams["delete_keys"]
+            deleted_data = indexed_teams.get("delete_keys")
 
-                # Logic to fetch all teams and channel details of microsoft team
-                teams_channels_obj = MSTeamsChannels(self.access_token, self.get_schema_fields, self.logger,
-                                                     self.config)
-                teams = teams_channels_obj.get_all_teams([])
+            # Logic to fetch all teams and channel details of microsoft team
+            teams_channels_obj = MSTeamsChannels(self.access_token, get_schema_fields, self.logger,
+                                                 self.config)
+            teams = teams_channels_obj.get_all_teams([])
 
-                # Logic to fetch all channels of Microsoft Teams
-                channels, channel_doc = teams_channels_obj.get_team_channels(teams, [])
+            # Logic to fetch all channels of Microsoft Teams
+            channels, channel_doc = teams_channels_obj.get_team_channels(teams, [])
 
-                thread_documents = {constant.CHANNEL_MESSAGES: [], constant.CHANNEL_DOCUMENTS: [],
-                                    constant.CHANNEL_TABS: []}
-                channel_message_results, channel_tab_results, channel_documents_results = [], [], []
-                thread_pool = ThreadPool(self.max_threads)
-                start_time = self.config.get_value("start_time")
-                end_time = constant.CURRENT_TIME
+            thread_documents = {constant.CHANNEL_MESSAGES: [], constant.CHANNEL_DOCUMENTS: [],
+                                constant.CHANNEL_TABS: []}
+            channel_message_results, channel_tab_results, channel_documents_results = [], [], []
+            thread_pool = ThreadPool(self.max_threads)
+            start_time = self.config.get_value("start_time")
+            end_time = constant.CURRENT_TIME
 
-                _, datelist = split_date_range_into_chunks(start_time, end_time, self.max_threads)
-                for num in range(0, self.max_threads):
-                    start_time_partition = datelist[num]
-                    end_time_partition = datelist[num + 1]
+            _, datelist = split_date_range_into_chunks(start_time, end_time, self.max_threads)
+            for num in range(0, self.max_threads):
+                start_time_partition = datelist[num]
+                end_time_partition = datelist[num + 1]
 
-                    # Applying threading on fetching channel messages
-                    message_thread = thread_pool.apply_async(teams_channels_obj.get_channel_messages,
-                                                             (channels, [], start_time_partition, end_time_partition))
-                    channel_message_results.append(message_thread)
+                # Applying threading on fetching channel messages
+                message_thread = thread_pool.apply_async(teams_channels_obj.get_channel_messages,
+                                                         (channels, [], start_time_partition, end_time_partition))
+                channel_message_results.append(message_thread)
 
-                    # Applying threading on fetching channel tabs
-                    tabs_thread = thread_pool.apply_async(teams_channels_obj.get_channel_tabs,
-                                                          (channels, [], start_time_partition, end_time_partition))
-                    channel_tab_results.append(tabs_thread)
+                # Applying threading on fetching channel tabs
+                tabs_thread = thread_pool.apply_async(teams_channels_obj.get_channel_tabs,
+                                                      (channels, [], start_time_partition, end_time_partition))
+                channel_tab_results.append(tabs_thread)
 
-                    # Applying threading on fetching channel documents
-                    documents_thread = thread_pool.apply_async(teams_channels_obj.get_channel_documents,
-                                                               (teams, [], start_time_partition, end_time_partition))
-                    channel_documents_results.append(documents_thread)
+                # Applying threading on fetching channel documents
+                documents_thread = thread_pool.apply_async(teams_channels_obj.get_channel_documents,
+                                                           (teams, [], start_time_partition, end_time_partition))
+                channel_documents_results.append(documents_thread)
 
-                channel_messages_thread_results = get_thread_results(channel_message_results)
-                thread_documents[constant.CHANNEL_MESSAGES].extend(channel_messages_thread_results)
+            channel_messages_thread_results = get_thread_results(channel_message_results)
+            thread_documents[constant.CHANNEL_MESSAGES].extend(channel_messages_thread_results)
 
-                # Fetches channel tabs from each thread
-                channel_tabs_thread_results = get_thread_results(channel_tab_results)
-                thread_documents[constant.CHANNEL_TABS].extend(channel_tabs_thread_results)
+            # Fetches channel tabs from each thread
+            channel_tabs_thread_results = get_thread_results(channel_tab_results)
+            thread_documents[constant.CHANNEL_TABS].extend(channel_tabs_thread_results)
 
-                # Fetches channel documents from each thread
-                channel_documents_thread_results = get_thread_results(channel_documents_results)
-                thread_documents[constant.CHANNEL_DOCUMENTS].extend(channel_documents_thread_results)
+            # Fetches channel documents from each thread
+            channel_documents_thread_results = get_thread_results(channel_documents_results)
+            thread_documents[constant.CHANNEL_DOCUMENTS].extend(channel_documents_thread_results)
 
-                thread_pool.close()
-                thread_pool.join()
+            thread_pool.close()
+            thread_pool.join()
 
-                live_data = []
-                live_data.extend(teams)
-                live_data.extend(channel_doc)
-                live_data.extend(thread_documents[constant.CHANNEL_MESSAGES])
-                live_data.extend(thread_documents[constant.CHANNEL_TABS])
-                live_data.extend(thread_documents[constant.CHANNEL_DOCUMENTS])
+            live_data = []
+            live_data.extend(teams)
+            live_data.extend(channel_doc)
+            live_data.extend(thread_documents[constant.CHANNEL_MESSAGES])
+            live_data.extend(thread_documents[constant.CHANNEL_TABS])
+            live_data.extend(thread_documents[constant.CHANNEL_DOCUMENTS])
 
-                self.iterate_item_ntimes(live_data, deleted_data, delete_keys_documents, global_keys_documents, "", "")
-                final_deleted_list = list(delete_keys_documents)
-                self.delete_document(final_deleted_list)
+            self.update_local_storage(live_data, deleted_data, delete_keys_documents, global_keys_documents, "", "")
+            final_deleted_list = list(delete_keys_documents)
+            self.delete_documents(final_deleted_list)
 
-                # Logic to update the microsoft_teams_channel_chat_doc_ids.json file with latest data
-                list_ids_data["global_keys"] = list(global_keys_documents)
-                with open(constant.CHANNEL_CHAT_DELETION_PATH, "w", encoding="UTF-8") as channel_path:
-                    try:
-                        json.dump(list_ids_data, channel_path, indent=4)
-                    except ValueError as exception:
-                        self.logger.exception(f'Error while adding ids to json file. Error: {exception}')
+            # Logic to update the microsoft_teams_channel_chat_doc_ids.json file with latest data
+            list_ids_data["global_keys"] = list(global_keys_documents)
+            self.local_storage.update_storage(list_ids_data, constant.CHANNEL_CHAT_DELETION_PATH)
         else:
-            self.logger.info("No records are present to check for deletion teams and it's objects")
-        self.logger.info(f"Completed deletion process of teams and it's objects on {datetime.now()}")
+            self.logger.debug("No records found for the deletion of teams and it's objects")
+        self.logger.info(f"Completed the deletion of teams and it's objects on {datetime.now()}")
 
     def deletion_user_chat(self):
-        """ The purpose of this method is to delete the user chat related documents from the workplace search.
+        """ Deletes the user chats related documents from the Workplace Search.
         """
         indexed_user_chat = []
         delete_keys_documents = []
         global_keys_documents = []
-        storage_with_collection = {"global_keys": [], "delete_keys": []}
-        self.logger.info(f"Started deletion process of user chat on {datetime.now()}")
+        list_ids_data = {"global_keys": [], "delete_keys": []}
+        self.logger.debug(f"Started the deletion process of user chats on {datetime.now()}")
         # Logic to read indexed documents from the microsoft_teams_user_chat_doc_ids.json file
         if (os.path.exists(constant.USER_CHAT_DELETION_PATH) and os.path.getsize(
                 constant.USER_CHAT_DELETION_PATH) > 0):
             try:
-                with open(constant.USER_CHAT_DELETION_PATH) as ids_store:
-                    try:
-                        indexed_user_chat = json.load(ids_store)
-                        indexed_user_chat["delete_keys"] = indexed_user_chat.get("delete_keys") or []
-                        indexed_user_chat["global_keys"] = indexed_user_chat.get("global_keys") or []
-                        global_keys_documents = indexed_user_chat.get("global_keys")
-                    except ValueError as exception:
-                        self.logger.exception(
-                            f"Error while reading users chats data from the path: {constant.USER_CHAT_DELETION_PATH}. \
-                                Error: {exception}"
-                        )
-                    # Logic to fetch all chats details of microsoft team
-                    user_msg = MSTeamsUserMessage(self.access_token, self.get_schema_fields, self.logger, self.config)
-                    _, chats = user_msg.get_user_chats([])
+                indexed_user_chat = self.local_storage.load_storage(constant.USER_CHAT_DELETION_PATH)
+                indexed_user_chat["delete_keys"] = indexed_user_chat.get("delete_keys") or []
+                indexed_user_chat["global_keys"] = indexed_user_chat.get("global_keys") or []
+                global_keys_documents = indexed_user_chat.get("global_keys")
 
-                    start_time = self.config.get_value("start_time")
-                    end_time = constant.CURRENT_TIME
+                # Logic to fetch all chats details of microsoft team
+                user_message_obj = MSTeamsUserMessage(self.access_token, get_schema_fields, self.logger, self.config)
+                _, chats = user_message_obj.get_user_chats([])
 
-                    _, datelist = split_date_range_into_chunks(start_time, end_time, self.max_threads)
-                    thread_pool = ThreadPool(self.max_threads)
-                    user_chat_documents, results = [], []
-                    for num in range(0, self.max_threads):
-                        start_time_partition = datelist[num]
-                        end_time_partition = datelist[num + 1]
-                        chat_thread = thread_pool.apply_async(user_msg.get_user_chat_messages, (
-                            [], {}, chats, start_time_partition, end_time_partition))
-                        results.append(chat_thread)
+                start_time = self.config.get_value("start_time")
+                end_time = constant.CURRENT_TIME
 
-                    user_chats_thread_results = get_thread_results(results)
-                    user_chat_documents.extend(user_chats_thread_results)
+                _, datelist = split_date_range_into_chunks(start_time, end_time, self.max_threads)
+                thread_pool = ThreadPool(self.max_threads)
+                user_chat_documents, results = [], []
+                for num in range(0, self.max_threads):
+                    start_time_partition = datelist[num]
+                    end_time_partition = datelist[num + 1]
+                    chat_thread = thread_pool.apply_async(user_message_obj.get_user_chat_messages, (
+                        [], {}, chats, start_time_partition, end_time_partition))
+                    results.append(chat_thread)
 
-                    thread_pool.close()
-                    thread_pool.join()
+                user_chats_thread_results = get_thread_results(results)
+                user_chat_documents.extend(user_chats_thread_results)
 
-                    list_ids_data = indexed_user_chat["delete_keys"]
-                    # Logic to iterate each items based on parent and child relationship and insert items into global
-                    # variable for deletion
-                    self.iterate_item_ntimes(user_chat_documents, list_ids_data, delete_keys_documents,
-                                             global_keys_documents, "", "")
-                    final_deleted_list = list(delete_keys_documents)
-                    self.delete_document(final_deleted_list)
-                    storage_with_collection["global_keys"] = list(global_keys_documents)
-                    with open(constant.USER_CHAT_DELETION_PATH, "w") as user_path:
-                        try:
-                            json.dump(storage_with_collection, user_path, indent=4)
-                        except ValueError as exception:
-                            self.logger.warn(f'Error while adding ids to json file. Error: {exception}')
+                thread_pool.close()
+                thread_pool.join()
+
+                list_ids_data = indexed_user_chat.get("delete_keys")
+                # Logic to iterate each items based on parent and child relationship and insert items into global
+                # variable for deletion
+                self.update_local_storage(user_chat_documents, list_ids_data, delete_keys_documents,
+                                          global_keys_documents, "", "")
+                final_deleted_list = list(delete_keys_documents)
+                self.delete_documents(final_deleted_list)
+                list_ids_data["global_keys"] = list(global_keys_documents)
+                self.local_storage.update_storage(list_ids_data, constant.USER_CHAT_DELETION_PATH)
             except Exception as exception:
                 self.logger.exception(f' Error while deleting user chats details into workplace search. Error: \
                     {exception}')
         else:
-            self.logger.info("No records are present to check for deletion user chats")
-        self.logger.info(f"Completed deletion process of user chat on {datetime.now()}")
+            self.logger.debug("No records found for the deletion of user chats")
+        self.logger.info(f"Completed the deletion process of user chat on {datetime.now()}")
 
     def deletion_calendar_chat(self):
-        """ The purpose of this method is to delete the calendar related documents from the workplace search.
+        """ Deletes the calendar related documents from the Workplace Search.
         """
         indexed_calendars = []
         delete_keys_documents = []
         global_keys_documents = []
         list_ids_data = {"global_keys": [], "delete_keys": []}
 
-        self.logger.info(f"Started deletion process of calendars on {datetime.now()}")
+        self.logger.debug(f"Started deletion process of calendars on {datetime.now()}")
         if (os.path.exists(constant.CALENDAR_CHAT_DELETION_PATH) and os.path.getsize(
                 constant.CALENDAR_CHAT_DELETION_PATH) > 0):
-            with open(constant.CALENDAR_CHAT_DELETION_PATH, encoding="UTF-8") as ids_store:
-                try:
-                    indexed_calendars = json.load(ids_store)
-                    indexed_calendars["delete_keys"] = indexed_calendars.get("delete_keys") or []
-                    indexed_calendars["global_keys"] = indexed_calendars.get("global_keys") or []
-                    global_keys_documents = indexed_calendars.get("global_keys")
-                except ValueError as exception:
-                    self.logger.exception(
-                        f"Error while reading calendars data from the path: \
-                        {constant.CALENDAR_CHAT_DELETION_PATH}. Error: {exception}"
-                    )
+            indexed_calendars = self.local_storage.load_storage(constant.CALENDAR_CHAT_DELETION_PATH)
+            indexed_calendars["delete_keys"] = indexed_calendars.get("delete_keys") or []
+            indexed_calendars["global_keys"] = indexed_calendars.get("global_keys") or []
+            global_keys_documents = indexed_calendars.get("global_keys")
 
-                # Fetching start datetime from them the YML file because we have to we have to fetch all data and
-                # check respective document exists or not instead of calling individual to improve performance
-                start_time = self.config.get_value("start_time")
-                deleted_data = indexed_calendars["delete_keys"]
+            # Fetching start datetime from them the YML file because we have to we have to fetch all data and
+            # check respective document exists or not instead of calling individual to improve performance
+            start_time = self.config.get_value("start_time")
+            deleted_data = indexed_calendars.get("delete_keys")
 
-                # Logic to fetch all chats details of microsoft team
-                calendars = MSTeamsCalendar(self.access_token, start_time, constant.CURRENT_TIME,
-                                            self.get_schema_fields, self.logger, self.config)
-                _, documents = calendars.get_calendars([])
-                self.iterate_item_ntimes(documents, deleted_data, delete_keys_documents, global_keys_documents, "", "")
-                final_deleted_list = list(delete_keys_documents)
-                self.delete_document(final_deleted_list)
-                # Logic to update the microsoft_teams_user_chat_doc_ids.json file with latest data
-                list_ids_data["global_keys"] = list(global_keys_documents)
-                with open(constant.CALENDAR_CHAT_DELETION_PATH, "w", encoding="UTF-8") as calendar_path:
-                    try:
-                        json.dump(list_ids_data, calendar_path, indent=4)
-                    except ValueError as exception:
-                        self.logger.exception(f'Error while adding ids to json file. Error: {exception}')
+            # Logic to fetch all chats details of microsoft team
+            calendars = MSTeamsCalendar(self.access_token, start_time, constant.CURRENT_TIME,
+                                        get_schema_fields, self.logger, self.config)
+            _, documents = calendars.get_calendars([])
+            self.update_local_storage(documents, deleted_data, delete_keys_documents, global_keys_documents, "", "")
+            final_deleted_list = list(delete_keys_documents)
+            self.delete_documents(final_deleted_list)
+            # Logic to update the microsoft_teams_user_chat_doc_ids.json file with latest data
+            list_ids_data["global_keys"] = list(global_keys_documents)
+            self.local_storage.update_storage(list_ids_data, constant.CALENDAR_CHAT_DELETION_PATH)
         else:
-            self.logger.info("No records are present to check for deletion calendars")
-        self.logger.info(f"Completed deletion process of calendars on {datetime.now()}")
+            self.logger.debug("No records found for the deletion of calendars")
+        self.logger.info(f"Completed the deletion process of calendars on {datetime.now()}")
 
-    def iterate_item_ntimes(self, live_documents, list_ids_documents, deleted_documents, global_keys_documents,
-                            parent_id, super_parent_id):
-        """ The purpose of this method is to recursively iterate documents upto N level for deletion.
-            :param live_documents: Pass all documents received from user chat
-            :param list_ids_documents: Pass all documents which is availabe inside
-                microsoft_teams_user_chat_doc_ids.json file
-            :param deleted_documents: Pass global variable to store deleted documents
-            :param global_keys_documents: Pass global variable of global_keys to removed deleted data
-            :param parent_id: Pass parent id of first document to start the execution
-            :param super_parent_id: Pass super parent id of first document to start the execution
+    def update_local_storage(self, live_documents, list_ids_documents, deleted_documents, global_keys_documents,
+                             parent_id, super_parent_id):
+        """ Updates the local storage with removing the keys that were deleted from Microsoft Teams
+            :param live_documents: Documents present in Microsoft Teams
+            :param list_ids_documents: Documents present in respective doc_ids.json files
+            :param deleted_documents: Document list that were deleted from Microsoft Teams
+            :param global_keys_documents: Document list that are present in doc_ids.json
+            :param parent_id: Parent id of the document
+            :param super_parent_id: Super parent id of the document
         """
-        parent_items = list(filter(lambda seq: self.get_child_items(seq, parent_id), list_ids_documents))
+        parent_items = list(filter(lambda seq: is_document_in_present_data(
+            seq, parent_id, "parent_id"), list_ids_documents))
         for item in parent_items:
-            id = item["id"]
+            item_id = item["id"]
             parent_id = item["parent_id"]
             super_parent_id = item["super_parent_id"]
             type = item["type"]
-            items_exists = list(filter(
-                lambda seq: self.check_item_isexists_in_livedata(seq, id), live_documents))
-            if(len(items_exists) == 0 and type not in [
+            present_items = list(filter(
+                lambda seq: is_document_in_present_data(seq, item_id, "id"), live_documents))
+            if(len(present_items) == 0 and type not in [
                     constant.CHATS, constant.USER, constant.USER_CHAT_DRIVE, constant.USER_CHAT_DRIVE_ITEM,
                     constant.CHANNEL_DRIVE, constant.CHANNEL_ROOT, constant.CHANNEL_DRIVE_ITEM]):
-                deleted_documents.append(id)
+                deleted_documents.append(item_id)
                 if item in global_keys_documents:
                     global_keys_documents.remove(item)
 
-            # Logic to recursively call same function till the N number of child level.
-            self.iterate_item_ntimes(live_documents, list_ids_documents,
-                                     deleted_documents, global_keys_documents, id, super_parent_id)
-
-    def get_child_items(self, document_item, parent_id):
-        """ The purpose of this method is to filter child item while iterating each document.
-            :param document_item: Pass user chat document
-            :param parent_id: Pass parent id of user chat document
-        """
-        return document_item["parent_id"] == parent_id
-
-    def check_item_isexists_in_livedata(self, document_item, id):
-        """ The purpose of this method is to filter item from the live data.
-            :param document_item: Pass user chat document
-            :param parent_id: Pass id of user chat document
-        """
-        return document_item["id"] == id
+            # Recursively call the function
+            self.update_local_storage(live_documents, list_ids_documents,
+                                      deleted_documents, global_keys_documents, item_id, super_parent_id)
 
 
 def init_deletion(job_name, access_token, config, workplace_search_client, logger):
-    """This function is used for initializing the deletion
-       :param job_name: Pass the type of object
-       :param access_token: Microsoft Teams access token
+    """Initializes the deletion process
+       :param job_name: Type of the object to delete the documents
+       :param access_token: Access Token for accessing the Graph APIs
        :param config: Configuration object
-       :param workplace_search_client: Cached workplace_search client object
+       :param workplace_search_client: Cached Workplace Search client object
        :param logger: Logger object
     """
     deletion = Deletion(access_token, config, workplace_search_client, logger)
@@ -346,17 +281,13 @@ def init_deletion(job_name, access_token, config, workplace_search_client, logge
 
 
 def start(config, logger, workplace_search_client):
-    """ The purpose of this method is to delete document from the workplace search when it will be deleted from the
-        Microsoft Teams and this class run three different process parallelly to delete document from the workplace
-        search. One for User Chat, second for Channel Chat and third for Calendar.
+    """ Starts the execution of the deletion process to delete the documents from the Workplace Search.
        :param config: Configuration object
        :param logger: Logger object
        :param workplace_search_client: Cached workplace_search client object
     """
-
-    logger.info("Starting the deletion...")
+    logger.debug("Starting the execution of deletion process...")
     objects = config.get_value("objects")
-    # Logic to generate access token to connect microsoft graph api to fetch data.
     token = MSALAccessToken(logger, config)
     obj_permissions_list = ["teams", "channels", "channel_messages", "channel_tabs", "channel_documents"]
     access_token = token.get_token()
