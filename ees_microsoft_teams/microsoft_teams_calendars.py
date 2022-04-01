@@ -19,7 +19,7 @@ MEETING = "Meeting"
 
 
 class MSTeamsCalendar:
-    """This class fetches the calendar for all users from Microsoft Teams"""
+    """Fetches calendars for all users from Microsoft Teams"""
 
     def __init__(self, access_token, start_time, end_time, get_schema_fields, logger, config):
         self.token = access_token
@@ -30,8 +30,9 @@ class MSTeamsCalendar:
         self.end_time = end_time
         self.logger = logger
         self.config = config
+        self.objects = config.get_value('objects')
 
-    def calendar_detail(self, attendees, calendar):
+    def get_calendar_detail(self, attendees, calendar):
         """This method is used to fetch the calendar details for creating body in the workplace
            :param attendees: All the attendees seprated by comma
            :param calendar: Dictionary of event details
@@ -78,15 +79,16 @@ class MSTeamsCalendar:
         return body
 
     def get_calendars(self, ids_list):
-        """ This class Fetches all calendars events from Microsoft Teams.
+        """ Fetches all calendar events from Microsoft Teams.
             :param ids_list: List of ids
-            Returns: permissions_dict: List of dictionaries containing calendar id and their members
-                     document: Documents to be indexed in Workplace Search
+            Returns:
+                permissions_dict: List of dictionaries containing calendar id and their members
+                documents: Documents to be indexed in Workplace Search
         """
-        self.logger.info("Fetching users for Calendar")
+        self.logger.debug("Fetching users for Calendar")
         users = self.users.get_all_users()
-        cal_schema = self.get_schema_fields("calendar")
-        document = []
+        cal_schema = self.get_schema_fields("calendar", self.objects)
+        documents = []
         permissions_dict = {}
         self.logger.info("Fetched the users metadata. Attempting to extract the meetings from the calendar..")
         for val in users:
@@ -107,13 +109,13 @@ class MSTeamsCalendar:
                                                                 val["userId"], "")
                             calendar_dict = {"url": "", "type": MEETING}
                             attendee_list = []
-                            permissions_dict[val["displayName"]] = [*permissions_dict.get(val["displayName"], []) +
-                                                                    [calendar["id"]]]
+                            permissions_dict[val["displayName"]] = [*permissions_dict.get(val["displayName"], []) + [
+                                calendar["id"]]]
                             for att in calendar['attendees']:
                                 attendee_list.append(f"{att['emailAddress']['name']}\
                                     ({att['emailAddress']['address']})")
                             attendees = ",".join(attendee_list)
-                            body = self.calendar_detail(attendees, calendar)
+                            body = self.get_calendar_detail(attendees, calendar)
                             for ws_field, ms_fields in cal_schema.items():
                                 calendar_dict[ws_field] = calendar[ms_fields]
                             calendar_dict['body'] = body
@@ -121,8 +123,8 @@ class MSTeamsCalendar:
                                 calendar_dict['url'] = calendar["onlineMeeting"]['joinUrl']
                             if self.config.get_value("enable_document_permission"):
                                 calendar_dict["_allow_permissions"] = [calendar['id']]
-                            document.append(calendar_dict)
+                            documents.append(calendar_dict)
             except Exception as exception:
-                self.logger.exception(f"Error while fetching calendar events from teams. Error: {exception}")
+                self.logger.exception(f"Error while fetching the calendar events from teams. Error: {exception}")
                 raise exception
-        return permissions_dict, document
+        return permissions_dict, documents

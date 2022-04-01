@@ -7,6 +7,7 @@
 """ This module is used to fetch all Microsoft Teams users.
 """
 import json
+
 import requests
 
 from . import constant
@@ -20,9 +21,9 @@ class MSTeamsUsers:
         self.logger = logger
 
     def get_all_users(self):
-        """ This method fetched all Microsoft Teams users.
+        """ Fetches all Microsoft Teams users.
         Returns:
-            user_details: List of dictionaries containing user details.
+            user_details: List of dictionaries containing the user details.
         """
         user_details = []
         request_header = {
