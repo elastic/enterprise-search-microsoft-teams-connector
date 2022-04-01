@@ -12,6 +12,6 @@
 
 
 class Deletion:
-    """ This class is used to remove document from the workplace search
+    """Removes the documents from the Workplace Search.
     """
     pass

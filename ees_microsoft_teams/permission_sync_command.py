@@ -21,7 +21,7 @@ class PermissionSyncCommand:
         self.config = config
 
     def remove_all_permissions(self):
-        """ Removes all the permissions present in the workplace
+        """Removes all the permissions present in the workplace
         """
         try:
             cal_ids = []

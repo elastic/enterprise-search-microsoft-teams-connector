@@ -9,5 +9,5 @@
 
 
 class MSTeamsCalendar:
-    """This class fetches the calendar for all users from Microsoft Teams"""
+    """Fetches calendars for all users from Microsoft Teams"""
     pass

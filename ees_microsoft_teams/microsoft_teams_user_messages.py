@@ -10,5 +10,5 @@
 
 
 class MSTeamsUserMessage:
-    """This class fetches all users detail from Microsoft Teams."""
+    """Fetches users details from the Microsoft Teams."""
     pass

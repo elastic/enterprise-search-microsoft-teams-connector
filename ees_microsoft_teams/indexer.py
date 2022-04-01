@@ -10,6 +10,6 @@
 
 
 class Indexer:
-    """ This class is responsible for indexing the Microsoft Teams objects and it's permissions to the Workplace Search.
+    """Indexes the Microsoft Teams objects and its permissions to the Workplace Search.
     """
     pass

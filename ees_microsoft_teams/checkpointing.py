@@ -39,7 +39,7 @@ class IncorrectFormatError(Exception):
 
 
 class Checkpoint:
-    """Checkpoints class is responsible for checkpoint operations.
+    """Checkpoint class is responsible for checkpoint operations.
 
         This class allows to get and set checkpoints, storing them in
         file system.
@@ -64,7 +64,7 @@ class Checkpoint:
         end_time = self.config.get_value("end_time")
 
         if (os.path.exists(CHECKPOINT_PATH) and os.path.getsize(CHECKPOINT_PATH) > 0):
-            self.logger.info(
+            self.logger.debug(
                 "Checkpoint file exists and has contents, hence considering the checkpoint time instead of start_time \
                 and end_time"
             )
@@ -91,7 +91,7 @@ class Checkpoint:
                         f"Error while parsing the json file of the checkpoint store from path: {CHECKPOINT_PATH}. \
                         Error: {exception}"
                     )
-                    self.logger.info(
+                    self.logger.debug(
                         "Considering the start_time and end_time from the configuration file"
                     )
 
