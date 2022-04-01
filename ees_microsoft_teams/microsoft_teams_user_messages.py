@@ -21,7 +21,7 @@ USER_CHAT_TABS = "User Chat Tabs"
 
 
 class MSTeamsUserMessage:
-    """This class fetches all users detail from Microsoft Teams."""
+    """Fetches users details from the Microsoft Teams."""
 
     def __init__(self, access_token, get_schema_fields, logger, config):
         self.token = access_token
@@ -30,10 +30,11 @@ class MSTeamsUserMessage:
         self.logger = logger
         self.permission = config.get_value("enable_document_permission")
         self.config = config
+        self.objects = config.get_value('objects')
 
     def get_attachments(self, user_id, prefix, attachment_name, attachment_id, chat_id, updated_date, ids_list,
                         user_drive, attachment_client):
-        """This method fetch all the attachments of a user
+        """Fetches all the attachments of a user chat
            :param user_id: Id of the user
            :param prefix: Title of the chat message
            :param attachment_name: Name of the attachment
@@ -41,7 +42,7 @@ class MSTeamsUserMessage:
            :param chat_id: Id of chat
            :param updated_date: date of chat updated
            :param ids_list: List of ids
-           :param user_drive: dictionary of user id with drive id
+           :param user_drive: Dictionary of user id with drive id
            :param attachment_client: Object of Microsoft team client
            Returns: att_list: Documents to be indexed in Workplace Search
         """
@@ -70,8 +71,9 @@ class MSTeamsUserMessage:
                 if user_drive.get(user_id).get(drive_id):
                     item_id = user_drive.get(user_id).get(drive_id)
                 else:
-                    users_root_response = attachment_client.get(f'{constant.GRAPH_BASE_URL}/drives/{drive_id}/\
-                        items/root/children', constant.ATTACHMENTS, False, False, filter_query="/")
+                    users_root_response = attachment_client.get(
+                        f'{constant.GRAPH_BASE_URL}/drives/{drive_id}/'
+                        f'items/root/children', constant.ATTACHMENTS, False, False, filter_query=" /")
                     user_root_response_data = check_response(self.logger, users_root_response.json(), f"Could \
                         not fetch the root user for the drive: {drive_id}", f"Error while fetching the root users \
                         for drive: {drive_id}")
@@ -116,18 +118,19 @@ class MSTeamsUserMessage:
                                                                     USER_CHAT_ATTACHMENT, item_id, drive_id)
             return att_list
         except Exception as exception:
-            self.logger.exception(f"[Fail] Error while fetching attachments for user chats. Error: {exception}")
+            self.logger.exception(f"[Fail] Error while fetching attachments for the user chats. Error: {exception}")
 
     def fetch_tabs(self, chat_id, ids_list, start_time, end_time):
-        """This method fetch all tabs from the chat
-           :param chat_id: Id of the chat
-           :param ids_list: List of ids
-           :param start_time: Starting time for fetching data
-           :param end_time: Ending time for fetching data
-           Returns: document: Documents to be indexed in Workplace Search
+        """Fetches user chat tabs from the Microsoft Teams
+            :param chat_id: Id of the chat
+            :param ids_list: List of ids
+            :param start_time: Starting time for fetching data
+            :param end_time: Ending time for fetching data
+            Returns:
+                documents: Documents to be indexed in Workplace Search
         """
         try:
-            document = []
+            documents = []
             tab_response = self.client.get(
                 f'{constant.GRAPH_BASE_URL}/chats/{chat_id}/tabs', USER_CHAT_TABS, False, False,
                 filter_query=f'{start_time}/{end_time}', datetime_filter_column_name="dateAdded",
@@ -135,7 +138,7 @@ class MSTeamsUserMessage:
             tab_detail_response = check_response(self.logger, tab_response, f"Could not fetch user tabs for chat id: \
                 {chat_id}", f"[Fail] Error while fetching user tabs from teams for chat id: {chat_id}.")
             if tab_detail_response:
-                tab_schema = self.get_schema_fields("user_tabs")
+                tab_schema = self.get_schema_fields("user_tabs", self.objects)
                 for tab in tab_detail_response:
                     tab_dict = {"type": USER_CHAT_TABS}
                     for ws_field, ms_fields in tab_schema.items():
@@ -143,17 +146,17 @@ class MSTeamsUserMessage:
                     tab_dict['url'] = tab['configuration']['websiteUrl']
                     if self.permission:
                         tab_dict["_allow_permissions"] = [chat_id]
-                    document.append(tab_dict)
+                    documents.append(tab_dict)
                     insert_document_into_doc_id_storage(ids_list, tab['id'], USER_CHAT_TABS, chat_id, "")
-            return document
+            return documents
         except Exception as exception:
             self.logger.exception(f"[Fail] Error while fetching user tabs from teams. Error: {exception}")
             raise exception
 
     def fetch_meeting_recording(self, chat_id, chat):
-        """This method fetches all the meeting recordings from the chat
+        """Fetches meeting recording from the Microsoft Teams
            :param chat_id: Id of the chat
-           :param chat: dictionary of chat
+           :param chat: dictionary of the user chat
            Returns: recording_dict: Document to be indexed in Workplace Search
         """
         if chat['eventDetail'] and chat[
@@ -169,14 +172,14 @@ class MSTeamsUserMessage:
                 return recording_dict
 
     def get_user_chats(self, ids_list):
-        """ This methods fetches chats by calling '/Chats' api
+        """ Fetches user chats by calling '/Chats' api
             :param ids_list: List of ids
             Returns:
                 member_dict: List of dictionaries containing chat id and their members
-                document: Documents to be indexed in Workplace Search
+                documents: Documents to be indexed in Workplace Search
         """
-        self.logger.info("Fetching users chats")
-        document = []
+        self.logger.debug("Fetching the users chats")
+        documents = []
         try:
             chat_response = self.client.get(
                 f'{constant.GRAPH_BASE_URL}/chats?$expand=members', constant.CHATS, True, False, page_size=50,
@@ -199,23 +202,23 @@ class MSTeamsUserMessage:
                         member_dict[display_name] = [*member_dict.get(display_name, []) + [val['id']]]
                 # Logic to append chat for deletion
                 insert_document_into_doc_id_storage(ids_list, val['id'], constant.CHATS, "", "")
-                document.append(val)
-        return member_dict, document
+                documents.append(val)
+        return member_dict, documents
 
     def get_user_chat_messages(self, ids_list, user_drive, chat_response_data, start_time, end_time):
-        """ This methods fetches chat messages, tabs, attachment and meeting recordings by calling '/Chats' api
+        """ Fetches the user chat messages from Microsoft Teams
             :param ids_list: List of ids
             :param user_drive: Dictionary of dictionary
             :param chat_response_data: Chats data for fetching chat messages
             :param start_time: Starting time for fetching data
             :param end_time: Ending time for fetching data
             Returns:
-                document: Documents to be indexed in Workplace Search
+                documents: Documents to be indexed in Workplace Search
         """
         self.logger.info(f"Fetching chat messages for the interval of start time: {start_time} and end time: \
             {end_time}.")
-        document = []
-        user_schema = self.get_schema_fields("user_chats")
+        documents = []
+        user_schema = self.get_schema_fields("user_chats", self.objects)
         user_attachment_token = MSALAccessToken(self.logger, self.config)
         user_attachment_token = user_attachment_token.get_token(is_acquire_for_client=True)
         attachment_client = MSTeamsClient(self.logger, user_attachment_token, self.config)
@@ -225,7 +228,7 @@ class MSTeamsUserMessage:
                 display_name = member['displayName']
                 if display_name:
                     member_title.append(display_name)
-            # Logic to append chat for deindexing
+            # Logic to append chat for deletion
             try:
                 chat_detail = self.client.get(
                     f'{constant.GRAPH_BASE_URL}/chats/{val["id"]}/messages', constant.USER_CHATS_MESSAGE, True,
@@ -237,7 +240,7 @@ class MSTeamsUserMessage:
                     for chat in chat_detail_response:
                         if not chat['deletedDateTime']:
                             title = val.get('topic') if val.get('topic') else ','.join(member_title)
-                            # Logic to append chat message for deindexing
+                            # Logic to append chat message for deletion
                             insert_document_into_doc_id_storage(
                                 ids_list, chat['id'], constant.USER_CHATS_MESSAGE, val['id'], "")
                             sender = chat['from']
@@ -252,7 +255,7 @@ class MSTeamsUserMessage:
                                             user_id, title, name, att['id'], val["id"], chat['lastModifiedDateTime'],
                                             ids_list, user_drive, attachment_client)
                                         if attachment:
-                                            document.extend(attachment)
+                                            documents.extend(attachment)
                             content = chat['body']['content']
                             msg = html_to_text(self.logger, content)
                             if msg:
@@ -264,18 +267,18 @@ class MSTeamsUserMessage:
                                 user_dict['url'] = val['webUrl']
                                 if self.permission:
                                     user_dict["_allow_permissions"] = [val['id']]
-                                document.append(user_dict)
+                                documents.append(user_dict)
                             else:
                                 self.logger.info(f"the message for the chat {chat['id']} is empty")
-                            meeting_rec = self.fetch_meeting_recording(val['id'], chat)
-                            if meeting_rec:
-                                document.append(meeting_rec)
+                            meeting_recordings = self.fetch_meeting_recording(val['id'], chat)
+                            if meeting_recordings:
+                                documents.append(meeting_recordings)
             except Exception as exception:
                 self.logger.exception(f"[Fail] Error while fetching user chats details from teams. Error: {exception}")
                 raise exception
             self.logger.info(f"Fetched chats, attachments and meeting recordings metadata. Attempting to fetch tabs \
                 for chat:{val['id']}")
             tabs_document = self.fetch_tabs(val['id'], ids_list, start_time, end_time)
-            document.extend(tabs_document)
-            self.logger.info("Fetched the user tabs")
-        return document
+            documents.extend(tabs_document)
+            self.logger.info("Fetched the user chat tabs")
+        return documents
