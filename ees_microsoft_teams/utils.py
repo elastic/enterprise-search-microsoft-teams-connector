@@ -162,15 +162,18 @@ def split_list_into_buckets(object_list, total_groups):
         return []
 
 
-def get_thread_results(thread_results):
-    """ Returns the documents getting from each thread
-        :param thread_results: Results getting from each thread
+def get_thread_results(documents):
+    """Groups the documents based on their object type
+        :param document: Documents to be indexed
+        Returns:
+            data_frame_dict: Dictionary of type with its count
     """
-    thread_documents = []
-    for result in [r.get() for r in thread_results]:
-        if result:
-            thread_documents.extend(result)
-    return thread_documents
+    if documents:
+        data_frame = pd.DataFrame(documents)
+        data_frame_size = data_frame.groupby('type').size()
+        data_frame_dict = data_frame_size.to_dict()
+        return data_frame_dict
+    return {}
 
 
 def get_schema_fields(document_name, objects):
