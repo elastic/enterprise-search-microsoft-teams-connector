@@ -10,7 +10,6 @@
 
 import copy
 import csv
-import multiprocessing
 import os
 from multiprocessing.pool import ThreadPool
 from .local_storage import LocalStorage
@@ -61,7 +60,9 @@ class Indexer:
                         self.logger.error(f"Error while indexing {each['id']}. Error: {each['errors']}")
             total_inserted_record_dict = get_records_by_types(documents)
             for type, count in total_records_dict.items():
-                self.logger.info(f"Total {total_inserted_record_dict[type]} {type} indexed out of {count}.")
+                self.logger.info(f"Total {total_inserted_record_dict[type]} {type} indexed out "
+                                 f"of {count}." if total_inserted_record_dict
+                                 else f"Total 0 {type} indexed out of {count}")
 
     def threaded_index_documents(self, documents, object_type):
         """ Indexes the documents to the Workplace Search using multithreading
