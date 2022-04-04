@@ -6,13 +6,13 @@
 
 import os
 import sys
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import logging
 
 import pytest
-from ees_microsoft_teams import utils
-from ees_microsoft_teams.configuration import Configuration
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from ees_microsoft_teams import utils  # noqa
+from ees_microsoft_teams.configuration import Configuration  # noqa
 
 
 def settings():
@@ -26,12 +26,6 @@ def settings():
 
     logger = logging.getLogger("unit_test_utils")
     return configuration, logger
-
-
-def test_extract_api_response():
-    """Test the extract content from tika"""
-    targeted_content = utils.extract_api_response("hello")
-    assert targeted_content == '\n\n\n\n\n\n\n\nhello\n'
 
 
 def test_url_encode():
