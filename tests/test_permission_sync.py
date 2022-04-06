@@ -8,12 +8,13 @@ import os
 import sys
 from unittest.mock import Mock
 
+from elastic_enterprise_search import WorkplaceSearch
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from ees_microsoft_teams.configuration import Configuration  # noqa
 from ees_microsoft_teams.permission_sync_command import \
     PermissionSyncCommand  # noqa
-from elastic_enterprise_search import WorkplaceSearch
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),
@@ -47,14 +48,21 @@ def create_permission_sync_obj():
 
 def test_remove_all_permissions():
     """Test method for removing all the permissions from workplace search"""
+    configs, _ = settings()
     permission_sync_obj = create_permission_sync_obj()
-    mocked_respose = {"results": [{"user": "user1", "permissions": "permission1"}]}
+    mocked_respose = {"results": [{"user": "user1", "permissions": ["permission1"]}]}
     permission_sync_obj.workplace_search_client.list_permissions = Mock(
         return_value=mocked_respose
     )
     permission_sync_obj.workplace_search_client.remove_user_permissions = Mock(
         return_value=True
     )
-    mock = Mock()
-    mock.permission_sync_obj.remove_all_permissions()
-    mock.permission_sync_obj.remove_all_permissions.assert_called()
+    permission_sync_obj.remove_all_permissions()
+    enterprise_search_host = configs.get_value("enterprise_search.source_id")
+    permission_sync_obj.workplace_search_client.list_permissions.assert_called_with(
+        content_source_id=enterprise_search_host)
+    permission_sync_obj.workplace_search_client.remove_user_permissions.assert_called_with(
+        content_source_id=enterprise_search_host,
+        user='user1',
+        body={"permissions": ["permission1"]}
+    )

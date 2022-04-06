@@ -87,7 +87,8 @@ def insert_document_into_doc_id_storage(ids_list, id, type, parent_id, super_par
     """
     new_item = {"id": str(id), "type": type, "parent_id": str(parent_id), "super_parent_id": str(super_parent_id)}
     if new_item not in ids_list:
-        return ids_list.append(new_item)
+        ids_list.append(new_item)
+        return ids_list
     else:
         return ids_list
 
@@ -162,18 +163,15 @@ def split_list_into_buckets(object_list, total_groups):
         return []
 
 
-def get_thread_results(documents):
-    """Groups the documents based on their object type
-        :param document: Documents to be indexed
-        Returns:
-            data_frame_dict: Dictionary of type with its count
+def get_thread_results(thread_results):
+    """ Returns the documents getting from each thread
+        :param thread_results: Results getting from each thread
     """
-    if documents:
-        data_frame = pd.DataFrame(documents)
-        data_frame_size = data_frame.groupby('type').size()
-        data_frame_dict = data_frame_size.to_dict()
-        return data_frame_dict
-    return {}
+    thread_documents = []
+    for result in [r.get() for r in thread_results]:
+        if result:
+            thread_documents.extend(result)
+    return thread_documents
 
 
 def get_schema_fields(document_name, objects):
@@ -204,10 +202,12 @@ def get_records_by_types(documents):
         Returns:
             data_frame_dict: Dictionary of type with its count
     """
-    data_frame = pd.DataFrame(documents)
-    data_frame_size = data_frame.groupby('type').size()
-    data_frame_dict = data_frame_size.to_dict()
-    return data_frame_dict
+    if documents:
+        data_frame = pd.DataFrame(documents)
+        data_frame_size = data_frame.groupby('type').size()
+        data_frame_dict = data_frame_size.to_dict()
+        return data_frame_dict
+    return {}
 
 
 def is_document_in_present_data(document, document_id, key):
