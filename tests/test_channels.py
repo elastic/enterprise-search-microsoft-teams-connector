@@ -3,19 +3,16 @@
 # or more contributor license agreements. Licensed under the Elastic License 2.0;
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
-
+from requests.models import Response
+from ees_microsoft_teams.microsoft_teams_channels import MSTeamsChannels
+from ees_microsoft_teams.configuration import Configuration
+import pytest
+from unittest.mock import Mock
 import logging
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-import re
-from unittest.mock import Mock, patch
-
-import pytest
-from ees_microsoft_teams.configuration import Configuration
-from ees_microsoft_teams.microsoft_teams_channels import MSTeamsChannels
-from requests.models import Response
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),
@@ -163,7 +160,8 @@ def test_get_message_replies(mock_channels):
     """Test get replies for messages"""
     team_replies_obj = create_channel_obj()
     team_replies_obj.client.get = Mock(return_value=mock_channels)
-    targeted_channel_message_reply = team_replies_obj.get_message_replies(1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z")
+    targeted_channel_message_reply = team_replies_obj.get_message_replies(
+        1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z")
     assert targeted_channel_message_reply == "Joni Sherman - Hi everyone"
 
 
@@ -334,50 +332,3 @@ def test_get_team_channels(channel_schema, source_teams, source_channels):
     targeted_teams, targeted_channels = channel_tabs_obj.get_team_channels(teams, [1, 2])
     assert targeted_teams == source_teams
     assert targeted_channels == source_channels
-
-
-@patch('ees_microsoft_teams.utils.extract_api_response')
-def test_get_attachment_content(requests_mock):
-    """Test for extracting content from the attachment"""
-    source_document_content = """
-
-
-
-
-
-
-
-
-Google
-
-Search Images Maps Play YouTube News Gmail Drive More »
-Web History | Settings | Sign in
-
-
-
-
-
-
-
-
-
-        Advanced search
-
-
-
-
-Google offered in:  हिन्दी    বাংলা    తెలుగు    मराठी    தமிழ்    ગુજરાતી    ಕನ್ನಡ    മലയാളം    ਪੰਜਾਬੀ
-
-
-Advertising�ProgramsBusiness SolutionsAbout GoogleGoogle.co.in
-
-© 2022 - Privacy - Terms"""
-    attachment_obj = create_channel_obj()
-    document = {
-        "file": {"mimeType": "img"}, "@microsoft.graph.downloadUrl": "https://www.google.com/", "name": "dummy"
-    }
-    requests_mock.get('https://www.google.com/', json={"1": 1}, status_code=200)
-    targeted_document_content = attachment_obj.get_attachment_content(document)
-    source_document_content = re.sub(r"[\n\t\s]*", "", source_document_content)
-    targeted_document_content = re.sub(r"[\n\t\s]*", "", targeted_document_content)
-    assert targeted_document_content == source_document_content
