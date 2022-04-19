@@ -21,13 +21,11 @@ MEETING = "Meeting"
 class MSTeamsCalendar:
     """Fetches calendars for all users from Microsoft Teams"""
 
-    def __init__(self, access_token, start_time, end_time, get_schema_fields, logger, config):
+    def __init__(self, access_token, get_schema_fields, logger, config):
         self.token = access_token
         self.get_schema_fields = get_schema_fields
         self.client = MSTeamsClient(logger, self.token, config)
         self.users = MSTeamsUsers(self.token, logger)
-        self.start_time = start_time
-        self.end_time = end_time
         self.logger = logger
         self.config = config
         self.objects = config.get_value('objects')
@@ -50,35 +48,35 @@ class MSTeamsCalendar:
             # If type of meeting  is yearly so body will be: Recurrence: Occurs every year on day 5 of march starting
             # {date} until {enddate}
             elif pattern['type'] in ['absoluteYearly', 'relativeYearly']:
-                day_pattern = f"on day {pattern['dayOfMonth']}" if pattern['dayOfMonth'] else f"on {pattern['index']} \
-                {','.join(pattern['daysOfWeek'])}"
+                day_pattern = f"on day {pattern['dayOfMonth']}" if pattern['dayOfMonth'] else f"on {pattern['index']} "
+                f"{','.join(pattern['daysOfWeek'])}"
                 days = f"year {day_pattern} of {cal.month_name[pattern['month']]}"
             # If type of meeting  is monthly so body will be: Recurrence: Occurs every month on day 5 of march
             # starting {date} until {enddate}
             elif pattern['type'] in ['absoluteMonthly', 'relativeMonthly']:
-                days_pattern = f"on day {pattern['dayOfMonth']}" if pattern['dayOfMonth'] else f"on {pattern['index']} \
-                    {','.join(pattern['daysOfWeek'])}"
+                days_pattern = f"on day {pattern['dayOfMonth']}" if pattern['dayOfMonth'] else f"on {pattern['index']} "
+                f"{','.join(pattern['daysOfWeek'])}"
                 days = f"{occurrence} month {days_pattern}"
             # Else goes in weekly situation where body will be: Recurrence: Occurs Every 3 week on monday,tuesday,
             # wednesday starting {date} until {enddate}
             else:
                 week = ','.join(pattern['daysOfWeek'])
                 days = f"{occurrence} week on {week}"
-            date = f"{range['startDate']}" if range['type'] == 'noEnd' else f"{range['startDate']} until \
-                {range['endDate']}"
+            date = f"{range['startDate']}" if range['type'] == 'noEnd' else f"{range['startDate']} until "
+            f"{range['endDate']}"
             recurrance = f"Occurs Every {days} starting {date}"
-            body = f'Recurrence: {recurrance} \n Organizer: {calendar["organizer"]["emailAddress"]["name"]} \n \
-                Attendees: {attendees} \n Description: {calendar["bodyPreview"]}'
+            body = f'Recurrence: {recurrance} \n Organizer: {calendar["organizer"]["emailAddress"]["name"]} \n '
+            f'Attendees: {attendees} \n Description: {calendar["bodyPreview"]}'
         else:
-            start_time = datetime.strptime(calendar["start"]["dateTime"][:-4], USER_MEETING_DATETIME_FORMAT).strftime(
+            start_time = datetime.strptime(calendar["start"]["dateTime"][: -4], USER_MEETING_DATETIME_FORMAT).strftime(
                 "%d %b, %Y at %H:%M")
-            end_time = datetime.strptime(calendar["end"]["dateTime"][:-4], USER_MEETING_DATETIME_FORMAT).strftime(
+            end_time = datetime.strptime(calendar["end"]["dateTime"][: -4], USER_MEETING_DATETIME_FORMAT).strftime(
                 "%d %b, %Y at %H:%M")
-            body = f'Schedule: {start_time} to {end_time}\n Organizer: {calendar["organizer"]["emailAddress"]["name"]}\
-                 \n Attendees: {attendees} \n Description: {calendar["bodyPreview"]}'
+            body = f'Schedule: {start_time} to {end_time}\n Organizer: {calendar["organizer"]["emailAddress"]["name"]}'
+            f'\n Attendees: {attendees} \n Description: {calendar["bodyPreview"]}'
         return body
 
-    def get_calendars(self, ids_list):
+    def get_calendars(self, ids_list, start_time, end_time):
         """ Fetches all calendar events from Microsoft Teams.
             :param ids_list: List of ids
             Returns:
@@ -97,10 +95,11 @@ class MSTeamsCalendar:
             try:
                 calendar_response = self.client.get(
                     f'{constant.GRAPH_BASE_URL}/users/{val["userId"]}/events', constant.CALENDAR, True, True,
-                    page_size=50, filter_query=f"lastModifiedDateTime ge {self.start_time} and lastModifiedDateTime \
-                    le {self.end_time}")
-                calendar_detail_response = check_response(self.logger, calendar_response, "Could not fetch calendar \
-                    events", "[Fail] Error while fetching calendar details from teams.")
+                    page_size=50, filter_query=f"lastModifiedDateTime ge {start_time} and lastModifiedDateTime "
+                    f"le {end_time}")
+                calendar_detail_response = check_response(
+                    self.logger, calendar_response, "Could not fetch calendar events",
+                    "[Fail] Error while fetching calendar details from teams.")
                 if calendar_detail_response:
                     for calendar in calendar_detail_response:
                         if not calendar['isCancelled']:
@@ -112,8 +111,8 @@ class MSTeamsCalendar:
                             permissions_dict[val["displayName"]] = [*permissions_dict.get(val["displayName"], []) + [
                                 calendar["id"]]]
                             for att in calendar['attendees']:
-                                attendee_list.append(f"{att['emailAddress']['name']}\
-                                    ({att['emailAddress']['address']})")
+                                attendee_list.append(f"{att['emailAddress']['name']}"
+                                                     f"({att['emailAddress']['address']})")
                             attendees = ",".join(attendee_list)
                             body = self.get_calendar_detail(attendees, calendar)
                             for ws_field, ms_fields in cal_schema.items():
