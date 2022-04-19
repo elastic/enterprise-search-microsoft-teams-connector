@@ -9,13 +9,10 @@
 """
 
 import csv
-import multiprocessing
 import os
 
-# from soupsieve import match
 from . import constant
 from .local_storage import LocalStorage
-from .msal_access_token import MSALAccessToken
 from .permission_sync_command import PermissionSyncCommand
 
 
@@ -51,14 +48,6 @@ class SyncMicrosoftTeams:
         user_name = rows.get(user, user)
         permission_dict = {"user": user_name, "roles": roles}
         self.queue.append_to_queue("permissions", permission_dict)
-
-    def fetch_user_chats(self, chats_obj, ids_list):
-        """Fetches user chats from Microsoft Teams
-        :param chats_obj: Chats class object to fetch the chats
-        :param ids_list: Document ids list from respective doc id file
-        """
-        user_permissions, chats = chats_obj.get_user_chats(ids_list)
-        return user_permissions, chats
 
     def fetch_user_chat_messages(
         self,
@@ -134,18 +123,6 @@ class SyncMicrosoftTeams:
         )
         return tab_documents
 
-    def fetch_calendars(self, calendar_obj, ids_list, start_time, end_time):
-        """Fetches calendar events from Microsoft Teams
-        :param calendar_obj: Class object to fetch calendar events
-        :param ids_list: Document ids list from respective doc id file
-        :param start_time: Start time for fetching calendar events
-        :param end_time: End time for fetching calendar events
-        """
-        calendar_permissions, documents = calendar_obj.get_calendars(
-            ids_list, start_time, end_time
-        )
-        return calendar_permissions, documents
-
     def remove_permissions(self, workplace_search_client):
         """Removes the permissions from Workplace Search"""
         if self.config.get_value("enable_document_permission"):
@@ -172,7 +149,6 @@ class SyncMicrosoftTeams:
         :param start_time: Start time to fetch the Mircosoft Teams objects
         :param end_time: End time to fetch the Microsoft Teams objects
         """
-        user_drive = multiprocessing.Manager().dict()
 
         if not iterable_list:
             return []
@@ -188,18 +164,4 @@ class SyncMicrosoftTeams:
         elif object_type == constant.CHANNEL_TABS:
             return self.fetch_channel_tabs(
                 iterable_list, class_object, start_time, end_time, ids_list
-            )
-        elif object_type == constant.USER_CHATS_MESSAGE:
-            user_attachment_token = MSALAccessToken(self.logger, self.config)
-            user_attachment_token = user_attachment_token.get_token(
-                is_acquire_for_client=True
-            )
-            return self.fetch_user_chat_messages(
-                iterable_list,
-                class_object,
-                ids_list,
-                user_drive,
-                start_time,
-                end_time,
-                user_attachment_token,
             )
