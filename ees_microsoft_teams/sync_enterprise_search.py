@@ -100,22 +100,6 @@ class SyncEnterpriseSearch:
             )
             raise exception
 
-    def delete_documents(self, final_deleted_list):
-        """Deletes the documents of specified ids from Workplace Search
-           :param final_deleted_list: List of ids to delete the documents from Workplace Search
-        """
-        for index in range(0, len(final_deleted_list), constant.BATCH_SIZE):
-            final_list = final_deleted_list[index:index + constant.BATCH_SIZE]
-            try:
-                # Logic to delete documents from the workplace search
-                self.workplace_search_client.delete_documents(
-                    content_source_id=self.config.get_value("enterprise_search.source_id"),
-                    document_ids=final_list)
-            except Exception as exception:
-                self.logger.exception(
-                    f"Error while deleting the documents to the Workplace Search. Error: {exception}")
-                return []
-
     def perform_sync(self):
         """Pull documents from the queue and synchronize it to the Enterprise Search."""
         checkpoint = Checkpoint(self.logger, self.config)
@@ -152,9 +136,5 @@ class SyncEnterpriseSearch:
                         documents_to_index, constant.BATCH_SIZE
                     ):
                         self.index_documents(chunk)
-                if deleted_document:
-                    deleted_document = list(unique_everseen(deleted_document))
-                    for chunk in split_documents_into_equal_chunks(deleted_document, constant.BATCH_SIZE):
-                        self.delete_documents(chunk)
                 if not signal_open:
                     break
