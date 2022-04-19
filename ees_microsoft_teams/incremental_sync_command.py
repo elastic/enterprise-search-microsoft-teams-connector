@@ -39,14 +39,8 @@ class IncrementalSyncCommand(BaseCommand):
         sync_microsoft_teams.remove_permissions(self.workplace_search_client)
 
         checkpoint = Checkpoint(self.logger, self.config)
-        teams_start_time, teams_end_time = checkpoint.get_checkpoint(
-            constant.CURRENT_TIME, "teams"
-        )
         user_chats_start_time, user_chats_end_time = checkpoint.get_checkpoint(
             constant.CURRENT_TIME, "user_chats"
-        )
-        calendar_start_time, calendar_end_time = checkpoint.get_checkpoint(
-            constant.CURRENT_TIME, "teams"
         )
 
         self.create_jobs_for_user_chats(
