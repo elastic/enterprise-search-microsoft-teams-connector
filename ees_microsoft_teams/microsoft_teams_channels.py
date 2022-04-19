@@ -44,8 +44,9 @@ class MSTeamsChannels:
         teams_url = f"{constant.GRAPH_BASE_URL}/groups"
         self.logger.info("Fetching the teams from Microsoft Teams...")
         team_response = self.client.get(teams_url, constant.TEAMS, True, False, page_size=999, filter_query="/")
-        team_response_data = check_response(self.logger, team_response, "Could not fetch the teams from Microsoft \
-            Teams", "Error while fetching the teams from Microsoft Teams")
+        team_response_data = check_response(
+            self.logger, team_response, "Could not fetch the teams from Microsoft Teams",
+            "Error while fetching the teams from Microsoft Teams")
         if team_response_data:
             team_schema = self.get_schema_fields("teams", self.objects)
             for team in team_response_data:
@@ -185,15 +186,15 @@ class MSTeamsChannels:
                                                 message_data["body"] = f"{sender} - {content}"
                                         else:
                                             self.logger.info(
-                                                f"Extracting meeting details for channel: {channel['title']} from \
-                                                    Microsoft Teams...")
+                                                f"Extracting meeting details for channel: {channel['title']} from "
+                                                "Microsoft Teams...")
                                             message_data["type"] = CHANNEL_MEETINGS
                                             meeting_time = message_dict['createdDateTime']
                                             formatted_datetime = datetime.strptime(
                                                 meeting_time, MEETING_DATETIME_FORMAT).strftime(
                                                 "%d %b, %Y at %H:%M:%S")
-                                            message_data["title"] = f"{channel['title']} - Meeting On \
-                                                {formatted_datetime}"
+                                            message_data["title"] = f"{channel['title']} - Meeting On "
+                                            f"{formatted_datetime}"
 
                                         # Logic to append channel messages for deletion
                                         insert_document_into_doc_id_storage(
@@ -209,8 +210,8 @@ class MSTeamsChannels:
                                             if attachments:
                                                 message_data["body"] += f"Attachment Replies:\n{replies_data}"
                                             elif content:
-                                                message_data["body"] = f"{sender} - {content}\nReplies:\n\
-                                                    {replies_data}"
+                                                message_data["body"] = f"{sender} - {content}\nReplies:\n"
+                                                f"{replies_data}"
                                             else:
                                                 message_data["body"] = f"Meeting Messages:\n{replies_data}"
                                         documents.append(message_data)
@@ -325,8 +326,8 @@ class MSTeamsChannels:
                             root_response_data = root_response.json()
                         except JSONDecodeError as exception:
                             self.logger.exception(
-                                f"Error while fetching the drive root response data from drive id: {drive_id} and \
-                                    team: {team_name}. Error: {exception}")
+                                f"Error while fetching the drive root response data from drive id: {drive_id} and "
+                                f"team: {team_name}. Error: {exception}")
                             continue
                         root_id = root_response_data["id"]
                         self.logger.info(f"Fetching channel drives for root: {root_response_data['name']}")
@@ -411,11 +412,11 @@ class MSTeamsChannels:
                             attachment_content = extract_api_response(attachment_content_response.content)
                         except TikaException as exception:
                             self.logger.exception(
-                                f"Error while extracting contents of {document['name']} via Tika Parser. Error: \
-                                    {exception}")
+                                f"Error while extracting contents of {document['name']} via Tika Parser. Error: "
+                                f"{exception}")
                         return attachment_content
                 except RequestException as exception:
                     self.logger.exception(
-                        f"Error while downloading the channel document from download URL: {download_url}. Error: \
-                            {exception}")
+                        f"Error while downloading the channel document from download URL: {download_url}. Error: "
+                        f"{exception}")
                     raise exception

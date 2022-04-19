@@ -55,10 +55,10 @@ class MSALAccessToken:
                     self.config.get_value("username"), self.config.get_value("password"), SCOPE)
             if not token.get("access_token"):
                 raise AccesstokenError(
-                    "Could not generate the access token, please verify the Microsoft Teams configuration settings in \
-                        configuration file.")
-            self.logger.info(
-                f"Successfully generated the access token for the tenant ID: {self.config.get_value('tenant_id')}.")
+                    "Could not generate the access token, please verify the Microsoft Teams configuration settings in "
+                    "configuration file.")
+            self.logger.info("Successfully generated the access token for the tenant ID: "
+                             f"{self.config.get_value('tenant_id')}.")
             return token.get("access_token")
         except Exception as exception:
             raise AccesstokenError(f"Error while generating the access token. Error: {exception}")

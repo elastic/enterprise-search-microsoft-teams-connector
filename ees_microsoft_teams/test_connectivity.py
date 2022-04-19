@@ -81,7 +81,7 @@ def test_ms_team(settings):
 
 @pytest.mark.workplace
 def test_workplace(settings):
-    """Tests the connection to the Enterprise search host
+    """ Tests the connection to the Enterprise search host
         :param settings: Configuration settings
     """
     configs, _ = settings
@@ -107,8 +107,8 @@ def test_workplace(settings):
                 break
         except Exception as exception:
             print(
-                f"[Fail] Error while connecting to the workplace host {enterprise_search_host}. Retry Count: \
-                {retry}. Error: {exception}")
+                f"[Fail] Error while connecting to the workplace host {enterprise_search_host}. Retry Count: "
+                f"{retry}. Error: {exception}")
             # This condition is to avoid sleeping for the last time
             if retry < retry_count:
                 time.sleep(2 ** retry)
@@ -121,7 +121,7 @@ def test_workplace(settings):
 
 @pytest.mark.ingestion
 def test_ingestion(settings):
-    """Tests the successful ingestion and deletion of a sample document to the Workplace Search
+    """ Tests the successful ingestion and deletion of a sample document to the Workplace Search
         :param settings: Configuration settings
     """
     configs, logger = settings
@@ -151,8 +151,8 @@ def test_ingestion(settings):
             break
         except Exception as exception:
             print(
-                f"[Fail] Error while ingesting document to the workplace host {enterprise_search_host}. Retry Count: \
-                    {retry}. Error: {exception}")
+                f"[Fail] Error while ingesting document to the workplace host {enterprise_search_host}. Retry Count: "
+                f"{retry}. Error: {exception}")
             # This condition is to avoid sleeping for the last time
             if retry < retry_count:
                 time.sleep(2 ** retry)
@@ -180,8 +180,8 @@ def test_ingestion(settings):
                     break
             except Exception as exception:
                 print(
-                    f"[Fail] Error while deleting document id 1234 from the workplace host {enterprise_search_host}. \
-                    Retry Count: {retry}. Error: {exception}")
+                    f"[Fail] Error while deleting document id 1234 from the workplace host {enterprise_search_host}. "
+                    f"Retry Count: {retry}. Error: {exception}")
                 # This condition is to avoid sleeping for the last time
                 if retry < retry_count:
                     time.sleep(2 ** retry)

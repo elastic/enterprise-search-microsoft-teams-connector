@@ -21,7 +21,7 @@ class PermissionSyncCommand:
         self.config = config
 
     def remove_all_permissions(self):
-        """Removes all the permissions present in the Workplace Search
+        """ Removes all the permissions present in the Workplace Search
         """
         try:
             cal_ids = []
@@ -35,8 +35,8 @@ class PermissionSyncCommand:
                         cal_ids = list(map(lambda x: x["id"], type_dict))
                     except ValueError as exception:
                         self.logger.exception(
-                            f"Error while reading calendars data from the path: \
-                                {constant.CALENDAR_CHAT_DELETION_PATH}. Error: {exception}"
+                            "Error while reading calendars data from the path: "
+                            f"{constant.CALENDAR_CHAT_DELETION_PATH}. Error: {exception}"
                         )
             user_permission = self.workplace_search_client.list_permissions(
                 content_source_id=self.config.get_value("enterprise_search.source_id"),
@@ -56,6 +56,6 @@ class PermissionSyncCommand:
                     )
                 self.logger.info("Removed the permissions from the Workplace Search.")
         except Exception as exception:
-            self.logger.exception(
-                f"Error while removing the permissions from the Workplace Search. Error: {exception}")
+            self.logger.exception("Error while removing the permissions from the Workplace Search. "
+                                  f"Error: {exception}")
             raise exception

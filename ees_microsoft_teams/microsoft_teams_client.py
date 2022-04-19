@@ -7,7 +7,7 @@
 """
 
 from json import JSONDecodeError
-
+import time
 import pandas
 import requests
 from requests.exceptions import RequestException
@@ -36,6 +36,7 @@ class MSTeamsClient:
     def __init__(self, logger, access_token, config):
         self.access_token = access_token
         self.logger = logger
+        self.config = config
         self.retry_count = int(config.get_value("retry_count"))
         self.request_header = {
             "Authorization": f"Bearer {self.access_token}"
@@ -149,6 +150,9 @@ class MSTeamsClient:
                     if response.status_code == 401:
                         self.regenerate_token(object_type)
                         continue
+                    if response.status_code == 429:
+                        time.sleep(int(response.headers["Retry-After"]))
+                        continue
                     response_data = self.get_response_data(response)
                     # Error 403 occurs when the current user is trying fetch the Teams and it's object which was
                     # created by other user
@@ -163,14 +167,14 @@ class MSTeamsClient:
                             return {"value": []}
                     elif not (object_type == 'deletion' and response.status_code == 404):
                         self.logger.error(
-                            f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, \
-                                url: {request_url}.")
+                            f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, "
+                            f"url: {request_url}.")
                     return response
                 else:
                     paginate_query = None
                     raise ResponseException(
-                        f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, url: \
-                            {request_url}.")
+                        f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, url: "
+                        f"{request_url}.")
             except RequestException as exception:
                 raise exception
         return response_list
@@ -191,7 +195,7 @@ class MSTeamsClient:
                 user_chats, permissions or deletion
         """
         self.logger.info("Access Token has expired. Regenerating the access token...")
-        token = MSALAccessToken(self.logger)
+        token = MSALAccessToken(self.logger, self.config)
         if object_type in [constant.CALENDAR, constant.ATTACHMENTS]:
             self.access_token = token.get_token(is_acquire_for_client=True)
         else:
