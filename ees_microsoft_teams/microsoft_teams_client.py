@@ -196,6 +196,9 @@ class MSTeamsClient:
         """
         self.logger.info("Access Token has expired. Regenerating the access token...")
         token = MSALAccessToken(self.logger, self.config)
+
+        # Unable to fetch the CALENDAR and ATTACHMENT using the access token generated via user-password flow
+        # So generating the separate access token for fetching CALENDAR and ATTACHMENT objects
         if object_type in [constant.CALENDAR, constant.ATTACHMENTS]:
             self.access_token = token.get_token(is_acquire_for_client=True)
         else:

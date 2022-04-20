@@ -28,12 +28,6 @@ def settings():
     return configuration, logger
 
 
-def test_extract_api_response():
-    """Test the extract content from tika"""
-    target_content = utils.extract_api_response("hello")
-    assert target_content == '\n\n\n\n\n\n\n\nhello\n'
-
-
 def test_url_encode():
     """Tests that encode URL"""
     url_to_encode = '''http://ascii.cl?parameter="Click on 'URL Decode'!"'''
