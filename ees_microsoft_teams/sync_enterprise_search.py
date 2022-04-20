@@ -32,6 +32,8 @@ class SyncEnterpriseSearch:
         Returns:
              df_dict: Dictionary of type with its count
         """
+        if not documents:
+            return {}
         df = pd.DataFrame(documents)
         df_size = df.groupby("type").size()
         df_dict = df_size.to_dict()
@@ -70,10 +72,8 @@ class SyncEnterpriseSearch:
                         )
             total_inserted_record_dict = self.get_records_by_types(documents)
             for type, count in total_records_dict.items():
-                self.logger.info(
-                    f"Thread ID: {threading.get_ident()} Total {total_inserted_record_dict[type]} {type} "
-                    f"indexed out of: {count} till now.."
-                )
+                self.logger.info(f"Total {total_inserted_record_dict[type]} {type} indexed out of {count}."
+                                 if total_inserted_record_dict else f"Total 0 {type} indexed out of {count}")
 
     def workplace_add_permission(self, permission_dict):
         """This method used to index the user permissions into Workplace Search

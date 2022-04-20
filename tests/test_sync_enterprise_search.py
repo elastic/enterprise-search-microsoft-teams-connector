@@ -11,11 +11,11 @@ import sys
 import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from unittest.mock import Mock
+from unittest.mock import Mock  # noqa
 
-from ees_microsoft_teams.configuration import Configuration
-from ees_microsoft_teams.indexer import Indexer
-from elastic_enterprise_search import WorkplaceSearch
+from ees_microsoft_teams.configuration import Configuration  # noqa
+from ees_microsoft_teams.sync_enterprise_search import SyncEnterpriseSearch  # noqa
+from elastic_enterprise_search import WorkplaceSearch  # noqa
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),
@@ -38,7 +38,7 @@ def settings():
     return configuration, logger
 
 
-def create_indexer_obj():
+def create_sync_enterprise_obj():
     """This function create indexer object for test.
     """
     configs, logger = settings()
@@ -49,7 +49,24 @@ def create_indexer_obj():
             "enterprise_search.api_key"
         ),
     )
-    return Indexer("token", workplace_search_client, "incremental", configs, logger, "checkpoint")
+    return SyncEnterpriseSearch(configs, logger, workplace_search_client, "queue")
+
+
+def test_get_records_by_types():
+    """Test for grouping records by their type"""
+    enterprise_obj = create_sync_enterprise_obj()
+    document = [
+        {
+            "id": 0,
+            "title": "demo",
+            "body": "Not much. It is a made up thing.",
+            "url": "https://teams.microsoft.com/demo.txt",
+            "created_at": "2019-06-01T12:00:00+00:00",
+            "type": "user_chats",
+        }
+    ]
+    target_records_type = enterprise_obj.get_records_by_types(document)
+    assert target_records_type == {'user_chats': 1}
 
 
 @pytest.mark.parametrize(
@@ -78,14 +95,14 @@ def create_indexer_obj():
         )
     ],
 )
-def test_bulk_index_documents(source_documents, mock_documents, caplog):
+def test_index_documents(source_documents, mock_documents, caplog):
     """Test that indexing document to workplace search"""
     caplog.set_level("INFO")
-    indexer_obj = create_indexer_obj()
-    indexer_obj.workplace_search_client.index_documents = Mock(
+    enterprise_obj = create_sync_enterprise_obj()
+    enterprise_obj.workplace_search_client.index_documents = Mock(
         return_value=mock_documents
     )
-    indexer_obj.bulk_index_documents(source_documents)
+    enterprise_obj.index_documents(source_documents)
     assert "Total 2 user_chats indexed out of 2." in caplog.text
 
 
@@ -114,32 +131,21 @@ def test_index_document_when_error_occurs(
 ):
     """Test that display proper error message if document not indexed."""
     caplog.set_level(log_level)
-    indexer_obj = create_indexer_obj()
-    indexer_obj.workplace_search_client.index_documents = Mock(
+    enterprise_obj = create_sync_enterprise_obj()
+    enterprise_obj.workplace_search_client.index_documents = Mock(
         return_value=mock_documents
     )
-    indexer_obj.bulk_index_documents(source_documents)
+    enterprise_obj.index_documents(source_documents)
     assert error_msg in caplog.text
 
 
 def test_add_permission_to_workplace(caplog):
     """Test that add permission to Enterprise Search."""
     caplog.set_level("INFO")
-    indexer_obj = create_indexer_obj()
-    indexer_obj.workplace_search_client.add_user_permissions = Mock(
+    enterprise_obj = create_sync_enterprise_obj()
+    enterprise_obj.workplace_search_client.add_user_permissions = Mock(
         return_value=True
     )
     mock = Mock()
-    mock.indexer_obj.workplace_add_permission("user1", "permission1")
-    mock.indexer_obj.workplace_add_permission.assert_called()
-
-
-def test_index_permissions():
-    """Test the index permissions"""
-    indexer_obj = create_indexer_obj()
-    indexer_obj.workplace_add_permission = Mock()
-    with open(USER_MAPPING, "w") as outfile:
-        outfile.write("dummy_user,user1")
-        outfile.close()
-    indexer_obj.index_permissions("dummy_user", "permission1")
-    assert True
+    mock.enterprise_obj.workplace_add_permission([{"user": "user1", "roles": "permission1"}])
+    mock.enterprise_obj.workplace_add_permission.assert_called()

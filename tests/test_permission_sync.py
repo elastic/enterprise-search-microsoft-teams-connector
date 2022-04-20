@@ -8,13 +8,12 @@ import os
 import sys
 from unittest.mock import Mock
 
-from elastic_enterprise_search import WorkplaceSearch
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from ees_microsoft_teams.configuration import Configuration  # noqa
 from ees_microsoft_teams.permission_sync_command import \
     PermissionSyncCommand  # noqa
+from elastic_enterprise_search import WorkplaceSearch  # noqa
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),

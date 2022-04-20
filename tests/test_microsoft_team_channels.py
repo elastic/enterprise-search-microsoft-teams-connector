@@ -3,16 +3,19 @@
 # or more contributor license agreements. Licensed under the Elastic License 2.0;
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
-from requests.models import Response
-from ees_microsoft_teams.microsoft_teams_channels import MSTeamsChannels
-from ees_microsoft_teams.configuration import Configuration
-import pytest
-from unittest.mock import Mock
+
 import logging
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import re  # noqa
+from unittest.mock import Mock, patch  # noqa
+
+import pytest  # noqa
+from ees_microsoft_teams.configuration import Configuration  # noqa
+from ees_microsoft_teams.microsoft_teams_channels import MSTeamsChannels  # noqa
+from requests.models import Response  # noqa
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),
@@ -76,8 +79,8 @@ def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
     channel_obj = create_channel_obj()
     channel_obj.get_schema_fields = Mock(return_value=teams_schema_field)
     channel_obj.client.get = Mock(return_value=mock_teams)
-    targeted_teams = channel_obj.get_all_teams([1, 2])
-    assert targeted_teams == source_teams
+    target_teams = channel_obj.get_all_teams([1, 2])
+    assert target_teams == source_teams
 
 
 @pytest.mark.parametrize(
@@ -113,8 +116,8 @@ def test_get_team_members(mock_teams):
     """Test get members of team"""
     team_member_obj = create_channel_obj()
     team_member_obj.client.get = Mock(return_value=mock_teams)
-    targeted_teams = team_member_obj.get_team_members()
-    assert targeted_teams == {'Golf Assist': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4']}
+    target_teams = team_member_obj.get_team_members()
+    assert target_teams == {'Golf Assist': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4']}
 
 
 @pytest.mark.parametrize(
@@ -160,9 +163,10 @@ def test_get_message_replies(mock_channels):
     """Test get replies for messages"""
     team_replies_obj = create_channel_obj()
     team_replies_obj.client.get = Mock(return_value=mock_channels)
-    targeted_channel_message_reply = team_replies_obj.get_message_replies(
-        1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z")
-    assert targeted_channel_message_reply == "Joni Sherman - Hi everyone"
+    target_channel_message_reply = team_replies_obj.get_message_replies(
+        1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z"
+        )
+    assert target_channel_message_reply == "Joni Sherman - Hi everyone"
 
 
 @pytest.mark.parametrize(
@@ -221,21 +225,20 @@ def test_get_channel_messages(mock_channel_messages, channel_schema_field, sourc
     team_channel_obj = create_channel_obj()
     team_channel_obj.client.get = Mock(return_value=mock_channel_messages)
     team_channel_obj.get_schema_fields = Mock(return_value=channel_schema_field)
-    targeted_channel_mesaages = team_channel_obj.get_channel_messages(
+    target_channel_mesaages = team_channel_obj.get_channel_messages(
         source_channels, [1, 2], "2021-03-29T03:56:11.26Z", "2021-03-30T03:56:11.2Z"
     )
-    targeted_channel_message_replies = '                                                    Robin Kline - Hello World'
     source_channel_message = [{
         'type': 'Channel Messages',
-                'title': 'dummy',
-                'body': f'Robin Kline - Hello World\nReplies:\n{targeted_channel_message_replies}',
-                'id': '1616990171266',
-                'url': 'https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035',
-                'last_updated': '2021-03-29T03:56:11.266Z',
-                '_allow_permissions': ['19:09fc54a3141a45d0'],
-                'created_at': '2021-03-29T03:56:11.266Z'
-    }]
-    assert source_channel_message == targeted_channel_mesaages
+        'title': 'dummy',
+        'body': 'Robin Kline - Hello World\nReplies:\n',
+        'id': '1616990171266',
+        'url': 'https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035',
+        'last_updated': '2021-03-29T03:56:11.266Z',
+        'created_at': '2021-03-29T03:56:11.266Z',
+        '_allow_permissions': ['19:09fc54a3141a45d0']
+        }]
+    assert source_channel_message == target_channel_mesaages
 
 
 @pytest.mark.parametrize(
@@ -280,10 +283,10 @@ def test_get_channel_tabs(mock_channel_tabs, source_channel_tabs, channel_tabs_s
     channel_tabs_obj = create_channel_obj()
     channel_tabs_obj.client.get = Mock(return_value=mock_channel_tabs)
     channel_tabs_obj.get_schema_fields = Mock(return_value=channel_tabs_schema)
-    targeted_channel_tabs = channel_tabs_obj.get_channel_tabs(
+    target_channel_tabs = channel_tabs_obj.get_channel_tabs(
         source_channels, [1, 2], "2021-03-29T03:56:11.266Z", "2021-03-30T03:56:11.266Z"
     )
-    assert targeted_channel_tabs == source_channel_tabs
+    assert target_channel_tabs == source_channel_tabs
 
 
 @pytest.mark.parametrize(
@@ -325,10 +328,59 @@ def test_get_team_channels(channel_schema, source_teams, source_channels):
     channel_tabs_obj = create_channel_obj()
     teams = [{"title": "dummy", "id": 1}]
     new_response = Response()
-    new_response._content = b'{"value": [{"id": "1", "createdDateTime": "2017-07-31T18:56:16.533Z", "displayName": "General", "description": "description", "email": "", "webUrl": "https://teams.microsoft.com/l/", "membershipType": "standard"}]}'
+    new_response._content = b'''{"value": [{"id": "1", "createdDateTime": "2017-07-31T18:56:16.533Z", "displayName":
+    "General", "description": "description", "email": "", "webUrl": "https://teams.microsoft.com/l/", "membershipType":
+    "standard"}]}'''
     new_response.status_code = 200
     channel_tabs_obj.client.get = Mock(return_value=new_response)
     channel_tabs_obj.get_schema_fields = Mock(return_value=channel_schema)
-    targeted_teams, targeted_channels = channel_tabs_obj.get_team_channels(teams, [1, 2])
-    assert targeted_teams == source_teams
-    assert targeted_channels == source_channels
+    target_teams, target_channels = channel_tabs_obj.get_team_channels(teams, [1, 2])
+    assert target_teams == source_teams
+    assert target_channels == source_channels
+
+
+@patch('ees_microsoft_teams.utils.extract_api_response')
+def test_get_attachment_content(requests_mock):
+    """Test for extracting content from the attachment"""
+    source_document_content = """
+
+
+
+
+
+
+
+
+Google
+
+Search Images Maps Play YouTube News Gmail Drive More »
+Web History | Settings | Sign in
+
+
+
+
+
+
+
+
+
+        Advanced search
+
+
+
+
+Google offered in:  हिन्दी    বাংলা    తెలుగు    मराठी    தமிழ்    ગુજરાતી    ಕನ್ನಡ    മലയാളം    ਪੰਜਾਬੀ
+
+
+Advertising�ProgramsBusiness SolutionsAbout GoogleGoogle.co.in
+
+© 2022 - Privacy - Terms"""
+    attachment_obj = create_channel_obj()
+    document = {
+        "file": {"mimeType": "img"}, "@microsoft.graph.downloadUrl": "https://www.google.com/", "name": "dummy"
+    }
+    requests_mock.get('https://www.google.com/', json={"1": 1}, status_code=200)
+    target_document_content = attachment_obj.get_attachment_content(document)
+    source_document_content = re.sub(r"[\n\t\s]*", "", source_document_content)
+    target_document_content = re.sub(r"[\n\t\s]*", "", target_document_content)
+    assert target_document_content == source_document_content

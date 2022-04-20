@@ -4,14 +4,15 @@
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
 
-from ees_microsoft_teams.configuration import Configuration
-from ees_microsoft_teams import utils
-import pytest
-import logging
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import logging  # noqa
+
+import pytest  # noqa
+from ees_microsoft_teams import utils  # noqa
+from ees_microsoft_teams.configuration import Configuration  # noqa
 
 
 def settings():
@@ -25,6 +26,12 @@ def settings():
 
     logger = logging.getLogger("unit_test_utils")
     return configuration, logger
+
+
+def test_extract_api_response():
+    """Test the extract content from tika"""
+    target_content = utils.extract_api_response("hello")
+    assert target_content == '\n\n\n\n\n\n\n\nhello\n'
 
 
 def test_url_encode():
