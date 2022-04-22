@@ -228,7 +228,6 @@ def test_get_channel_messages(mock_channel_messages, channel_schema_field, sourc
     target_channel_messages = team_channel_obj.get_channel_messages(
         source_channels, [1, 2], "2021-03-29T03:56:11.26Z", "2021-03-30T03:56:11.2Z"
     )
-    print("========================================================\n", target_channel_messages)
     source_channel_message = [{
         'type': 'Channel Messages',
         'title': 'dummy',
