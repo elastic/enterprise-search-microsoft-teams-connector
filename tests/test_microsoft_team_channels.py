@@ -225,20 +225,21 @@ def test_get_channel_messages(mock_channel_messages, channel_schema_field, sourc
     team_channel_obj = create_channel_obj()
     team_channel_obj.client.get = Mock(return_value=mock_channel_messages)
     team_channel_obj.get_schema_fields = Mock(return_value=channel_schema_field)
-    target_channel_mesaages = team_channel_obj.get_channel_messages(
+    target_channel_messages = team_channel_obj.get_channel_messages(
         source_channels, [1, 2], "2021-03-29T03:56:11.26Z", "2021-03-30T03:56:11.2Z"
     )
+    print("========================================================\n", target_channel_messages)
     source_channel_message = [{
         'type': 'Channel Messages',
         'title': 'dummy',
-        'body': 'Robin Kline - Hello World\nReplies:\n',
+        'body': 'Robin Kline - Hello World\nReplies:\nRobin Kline - Hello World',
         'id': '1616990171266',
         'url': 'https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035',
         'last_updated': '2021-03-29T03:56:11.266Z',
         'created_at': '2021-03-29T03:56:11.266Z',
         '_allow_permissions': ['19:09fc54a3141a45d0']
-        }]
-    assert source_channel_message == target_channel_mesaages
+    }]
+    assert source_channel_message == target_channel_messages
 
 
 @pytest.mark.parametrize(

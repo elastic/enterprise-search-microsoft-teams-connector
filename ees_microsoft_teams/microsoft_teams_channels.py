@@ -5,9 +5,9 @@
 #
 """This module collects all the teams and Channels detail from Microsoft Teams.
 """
-from datetime import datetime
 from json import JSONDecodeError
 
+import dateparser  # noqa
 import requests
 from iteration_utilities import unique_everseen
 from requests.exceptions import RequestException
@@ -190,11 +190,10 @@ class MSTeamsChannels:
                                                 "Microsoft Teams...")
                                             message_data["type"] = CHANNEL_MEETINGS
                                             meeting_time = message_dict['createdDateTime']
-                                            formatted_datetime = datetime.strptime(
-                                                meeting_time, MEETING_DATETIME_FORMAT).strftime(
+                                            formatted_datetime = dateparser.parse(meeting_time).strftime(
                                                 "%d %b, %Y at %H:%M:%S")
-                                            message_data["title"] = f"{channel['title']} - Meeting On "
-                                            f"{formatted_datetime}"
+                                            message_data["title"] = f"{channel['title']} - Meeting On "\
+                                                                    f"{formatted_datetime}"
 
                                         # Logic to append channel messages for deletion
                                         insert_document_into_doc_id_storage(
@@ -210,8 +209,8 @@ class MSTeamsChannels:
                                             if attachments:
                                                 message_data["body"] += f"Attachment Replies:\n{replies_data}"
                                             elif content:
-                                                message_data["body"] = f"{sender} - {content}\nReplies:\n"
-                                                f"{replies_data}"
+                                                message_data["body"] = f"{sender} - {content}\nReplies:\n"\
+                                                                       f"{replies_data}"
                                             else:
                                                 message_data["body"] = f"Meeting Messages:\n{replies_data}"
                                         documents.append(message_data)

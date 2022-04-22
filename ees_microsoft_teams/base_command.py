@@ -178,23 +178,41 @@ class BaseCommand:
                 user_permissions = microsoft_teams_object.get_team_members()
                 sync_microsoft_teams.sync_permissions(user_permissions)
 
-            (
-                teams,
-                channels,
-                channel_index_documents,
-            ) = sync_microsoft_teams.fetch_teams_and_channels(
-                microsoft_teams_object, ids_list
-            )
+            teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list)
 
             configuration_objects = self.config.get_value("objects")
             if "teams" in configuration_objects:
                 queue.append_to_queue(constant.TEAMS, teams)
-            if "channels" in configuration_objects:
-                queue.append_to_queue(constant.CHANNELS, channel_index_documents)
 
             teams_partition_list = split_documents_into_equal_chunks(
                 teams, thread_count
             )
+
+            job_documents_list = self.create_jobs(
+                thread_count,
+                sync_microsoft_teams.perform_sync,
+                (
+                    constant.CHANNELS,
+                    ids_list,
+                    microsoft_teams_object,
+                    start_time,
+                    end_time,
+                ),
+                teams_partition_list,
+            )
+
+            channels, channel_index_documents = [], []
+            # Getting channels at even number of positions to fetch the channel messages and tabs
+            for index in job_documents_list[::2]:
+                channels.extend(index)
+
+            # Getting channel documents at odd number of positions to be indexed into the workplace search
+            for index in job_documents_list[1::2]:
+                channel_index_documents.extend(index)
+
+            if "channels" in configuration_objects:
+                queue.append_to_queue(constant.CHANNELS, channel_index_documents)
+
             channels_partition_list = split_documents_into_equal_chunks(
                 channels, thread_count
             )

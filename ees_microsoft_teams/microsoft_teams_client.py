@@ -151,6 +151,7 @@ class MSTeamsClient:
                         self.regenerate_token(object_type)
                         continue
                     if response.status_code == 429:
+                        self.logger.info("Getting too many requests, retrying to fetch the documents...")
                         time.sleep(int(response.headers["Retry-After"]))
                         continue
                     response_data = self.get_response_data(response)

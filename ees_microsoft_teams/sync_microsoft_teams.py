@@ -37,9 +37,7 @@ class SyncMicrosoftTeams:
         rows = {}
         mapping_sheet_path = self.config.get_value("microsoft_teams.user_mapping")
         if (
-            mapping_sheet_path
-            and os.path.exists(mapping_sheet_path)
-            and os.path.getsize(mapping_sheet_path) > 0
+            mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0
         ):
             with open(mapping_sheet_path, encoding="UTF-8") as file:
                 csvreader = csv.reader(file)
@@ -73,14 +71,22 @@ class SyncMicrosoftTeams:
         )
         return documents
 
-    def fetch_teams_and_channels(self, teams_obj, ids_list):
-        """Fetches teams and channels from Microsoft Teams
+    def fetch_teams(self, teams_obj, ids_list):
+        """Fetches teams from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
         """
         teams = teams_obj.get_all_teams(ids_list)
+        return teams
+
+    def fetch_channels(self, teams, teams_obj, ids_list):
+        """Fetches channels from Microsoft Teams
+        :param teams: List of teams to fetch the channels
+        :param teams_obj: Class object to fetch teams and its objects
+        :param ids_list: Document ids list from respective doc id file
+        """
         channels, channel_documents = teams_obj.get_team_channels(teams, ids_list)
-        return teams, channels, channel_documents
+        return [channels, channel_documents]
 
     def fetch_channel_documents(self, teams, teams_obj, start_time, end_time, ids_list):
         """Fetches channel documents from Microsoft Teams
@@ -153,7 +159,9 @@ class SyncMicrosoftTeams:
         if not iterable_list:
             return []
 
-        if object_type == constant.CHANNEL_DOCUMENTS:
+        if object_type == constant.CHANNELS:
+            return self.fetch_channels(iterable_list, class_object, ids_list)
+        elif object_type == constant.CHANNEL_DOCUMENTS:
             return self.fetch_channel_documents(
                 iterable_list, class_object, start_time, end_time, ids_list
             )
