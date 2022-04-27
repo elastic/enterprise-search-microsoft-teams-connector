@@ -164,7 +164,16 @@ class MSTeamsChannels:
 
     def get_channel_messages_documents(
             self, message_response_data, channel, ids_list, team_id, start_time, end_time, documents):
-
+        """Prepares a workplace search document to be indexed
+        :param message_response_data: Response data to prepare a workplace search document
+        :param channel: Channel for fetching the channel messages
+        :param ids_list: Shared storage for storing the document ids
+        :param start_time: Starting time for fetching data
+        :param end_time: Ending time for fetching data
+        :param documents: Document to be indexed into the Workplace Search
+        Returns:
+            documents: Document to be indexed into the Workplace Search
+        """
         channel_id = channel["id"]
         channel_name = channel["title"]
         channel_message_schema = self.get_schema_fields("channel_messages", self.objects)
@@ -226,6 +235,11 @@ class MSTeamsChannels:
         return documents
 
     def get_attachment_names(self, attachments):
+        """Creates a variable having the attachment names
+        :param attachments: Attachment object for fetching the attachment names
+        Returns:
+            attachment_names: Variable having the attachment names
+        """
         attachment_list = []
         for attachment in attachments:
             if attachment["contentType"] == "tabReference":
