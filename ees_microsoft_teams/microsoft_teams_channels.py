@@ -154,71 +154,85 @@ class MSTeamsChannels:
                             self.logger, message_response, f"Could not fetch the messages for channel: {channel_name}",
                             f"Error while fetching the messages for channel: {channel_name}")
                         if message_response_data:
-                            channel_message_schema = self.get_schema_fields("channel_messages", self.objects)
-                            for message_dict in message_response_data:
-                                message_data = {"type": constant.CHANNEL_MESSAGES}
-                                if not message_dict["deletedDateTime"]:
-                                    content = html_to_text(self.logger, message_dict["body"]["content"])
-                                    attachments = message_dict.get("attachments")
-                                    is_meeting = message_dict.get("eventDetail") and message_dict.get(
-                                        "eventDetail", {}).get("callEventType")
-                                    if content or attachments or is_meeting:
-                                        if content or attachments:
-                                            self.logger.info("Extracting html/text messages...")
-                                            sender = message_dict["from"]["user"]["displayName"]
-                                            attachment_list = []
-                                            for attachment in attachments:
-                                                if attachment["contentType"] == "tabReference":
-                                                    attachment["name"] = url_decode(attachment["name"])
-                                                attachment_list.append(attachment["name"])
-                                            attachment_names = ", ".join(attachment_list)
-                                            message_data["title"] = channel_name
-                                            # If the message has attachments in it, set the message body format to
-                                            # `sender - attachments`
-                                            message_data["body"] = f"{sender} - {attachment_names}\n"
-                                            if content and attachments:
-                                                # If the message has both content and attachments, set the message
-                                                # body format to `sender - attachments - message`
-                                                message_data["body"] += f"Message: {content}\n"
-                                            elif content:
-                                                # If the message has just content and no attachments, replace the
-                                                # message body format with `sender - message`
-                                                message_data["body"] = f"{sender} - {content}"
-                                        else:
-                                            self.logger.info(
-                                                f"Extracting meeting details for channel: {channel['title']} from "
-                                                "Microsoft Teams...")
-                                            message_data["type"] = CHANNEL_MEETINGS
-                                            meeting_time = message_dict['createdDateTime']
-                                            formatted_datetime = dateparser.parse(meeting_time).strftime(
-                                                "%d %b, %Y at %H:%M:%S")
-                                            message_data["title"] = f"{channel['title']} - Meeting On "\
-                                                                    f"{formatted_datetime}"
-
-                                        # Logic to append channel messages for deletion
-                                        insert_document_into_doc_id_storage(
-                                            ids_list, message_dict["id"],
-                                            constant.CHANNEL_MESSAGES, channel_id, team_id)
-                                        for ws_field, ms_field in channel_message_schema.items():
-                                            message_data[ws_field] = message_dict[ms_field]
-                                        if self.permission:
-                                            message_data["_allow_permissions"] = [team_id]
-                                        replies_data = self.get_message_replies(
-                                            team_id, channel_id, message_dict['id'], start_time, end_time)
-                                        if replies_data:
-                                            if attachments:
-                                                message_data["body"] += f"Attachment Replies:\n{replies_data}"
-                                            elif content:
-                                                message_data["body"] = f"{sender} - {content}\nReplies:\n"\
-                                                                       f"{replies_data}"
-                                            else:
-                                                message_data["body"] = f"Meeting Messages:\n{replies_data}"
-                                        documents.append(message_data)
+                            documents = self.get_channel_messages_documents(
+                                message_response_data, channel, ids_list, team_id, start_time, end_time, documents)
                     except Exception as exception:
                         self.logger.exception(
                             f"Error while fetching the channel messages from Microsoft Teams. Error: {exception}")
                         raise exception
         return documents
+
+    def get_channel_messages_documents(
+            self, message_response_data, channel, ids_list, team_id, start_time, end_time, documents):
+
+        channel_id = channel["id"]
+        channel_name = channel["title"]
+        channel_message_schema = self.get_schema_fields("channel_messages", self.objects)
+        for message_dict in message_response_data:
+            message_data = {"type": constant.CHANNEL_MESSAGES}
+            if not message_dict["deletedDateTime"]:
+                content = html_to_text(self.logger, message_dict["body"]["content"])
+                attachments = message_dict.get("attachments")
+                is_meeting = message_dict.get("eventDetail") and message_dict.get(
+                    "eventDetail", {}).get("callEventType")
+                if content or attachments or is_meeting:
+                    if content or attachments:
+                        self.logger.info("Extracting html/text messages...")
+                        sender = message_dict["from"]["user"]["displayName"]
+                        attachment_names = self.get_attachment_names(attachments)
+                        message_data["title"] = channel_name
+                        # If the message has attachments in it, set the message body format to
+                        # `sender - attachments`
+                        message_data["body"] = f"{sender} - {attachment_names}\n"
+                        if content and attachments:
+                            # If the message has both content and attachments, set the message
+                            # body format to `sender - attachments - message`
+                            message_data["body"] += f"Message: {content}\n"
+                        elif content:
+                            # If the message has just content and no attachments, replace the
+                            # message body format with `sender - message`
+                            message_data["body"] = f"{sender} - {content}"
+                    else:
+                        self.logger.info(
+                            f"Extracting meeting details for channel: {channel['title']} from "
+                            "Microsoft Teams...")
+                        message_data["type"] = CHANNEL_MEETINGS
+                        meeting_time = message_dict['createdDateTime']
+                        formatted_datetime = dateparser.parse(meeting_time).strftime(
+                            "%d %b, %Y at %H:%M:%S")
+                        message_data["title"] = f"{channel['title']} - Meeting On "\
+                                                f"{formatted_datetime}"
+
+                    # Logic to append channel messages for deletion
+                    insert_document_into_doc_id_storage(
+                        ids_list, message_dict["id"],
+                        constant.CHANNEL_MESSAGES, channel_id, team_id)
+                    for ws_field, ms_field in channel_message_schema.items():
+                        message_data[ws_field] = message_dict[ms_field]
+                    if self.permission:
+                        message_data["_allow_permissions"] = [team_id]
+                    replies_data = self.get_message_replies(
+                        team_id, channel_id, message_dict['id'], start_time, end_time)
+                    if replies_data:
+                        if attachments:
+                            message_data["body"] += f"Attachment Replies:\n{replies_data}"
+                        elif content:
+                            message_data["body"] = f"{sender} - {content}\nReplies:\n"\
+                                                    f"{replies_data}"
+                        else:
+                            message_data["body"] = f"Meeting Messages:\n{replies_data}"
+                    if message_data:
+                        documents.append(message_data)
+        return documents
+
+    def get_attachment_names(self, attachments):
+        attachment_list = []
+        for attachment in attachments:
+            if attachment["contentType"] == "tabReference":
+                attachment["name"] = url_decode(attachment["name"])
+            attachment_list.append(attachment["name"])
+        attachment_names = ", ".join(attachment_list)
+        return attachment_names
 
     def get_message_replies(self, team_id, channel_id, message_id, start_time, end_time):
         """ Fetches the replies of a specific channel message.

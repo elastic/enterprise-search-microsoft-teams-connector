@@ -190,25 +190,18 @@ class BaseCommand:
 
             job_documents_list = self.create_jobs(
                 thread_count,
-                sync_microsoft_teams.perform_sync,
+                sync_microsoft_teams.fetch_channels,
                 (
-                    constant.CHANNELS,
-                    ids_list,
                     microsoft_teams_object,
-                    start_time,
-                    end_time,
+                    ids_list,
                 ),
                 teams_partition_list,
             )
 
             channels, channel_index_documents = [], []
-            # Getting channels at even number of positions to fetch the channel messages and tabs
-            for index in job_documents_list[::2]:
-                channels.extend(index)
-
-            # Getting channel documents at odd number of positions to be indexed into the workplace search
-            for index in job_documents_list[1::2]:
-                channel_index_documents.extend(index)
+            for channel_data in job_documents_list:
+                channels.extend(channel_data["channels"])
+                channel_index_documents.extend(channel_data["channel_documents"])
 
             if "channels" in configuration_objects:
                 queue.append_to_queue(constant.CHANNELS, channel_index_documents)
@@ -220,13 +213,12 @@ class BaseCommand:
             if "channel_messages" in configuration_objects:
                 channel_messages = self.create_jobs(
                     thread_count,
-                    sync_microsoft_teams.perform_sync,
+                    sync_microsoft_teams.fetch_channel_messages,
                     (
-                        constant.CHANNEL_MESSAGES,
-                        ids_list,
                         microsoft_teams_object,
                         start_time,
                         end_time,
+                        ids_list,
                     ),
                     channels_partition_list,
                 )
@@ -235,13 +227,12 @@ class BaseCommand:
             if "channel_tabs" in configuration_objects:
                 channel_tabs = self.create_jobs(
                     thread_count,
-                    sync_microsoft_teams.perform_sync,
+                    sync_microsoft_teams.fetch_channel_tabs,
                     (
-                        constant.CHANNEL_TABS,
-                        ids_list,
                         microsoft_teams_object,
                         start_time,
                         end_time,
+                        ids_list,
                     ),
                     channels_partition_list,
                 )
@@ -250,13 +241,12 @@ class BaseCommand:
             if "channel_documents" in configuration_objects:
                 channel_documents = self.create_jobs(
                     thread_count,
-                    sync_microsoft_teams.perform_sync,
+                    sync_microsoft_teams.fetch_channel_documents,
                     (
-                        constant.CHANNEL_DOCUMENTS,
-                        ids_list,
                         microsoft_teams_object,
                         start_time,
                         end_time,
+                        ids_list,
                     ),
                     teams_partition_list,
                 )

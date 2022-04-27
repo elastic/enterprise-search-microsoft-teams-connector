@@ -11,7 +11,6 @@
 import csv
 import os
 
-from . import constant
 from .local_storage import LocalStorage
 from .permission_sync_command import PermissionSyncCommand
 
@@ -79,16 +78,16 @@ class SyncMicrosoftTeams:
         teams = teams_obj.get_all_teams(ids_list)
         return teams
 
-    def fetch_channels(self, teams, teams_obj, ids_list):
+    def fetch_channels(self, teams_obj, ids_list, teams):
         """Fetches channels from Microsoft Teams
         :param teams: List of teams to fetch the channels
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
         """
         channels, channel_documents = teams_obj.get_team_channels(teams, ids_list)
-        return [channels, channel_documents]
+        return [{"channels": channels, "channel_documents": channel_documents}]
 
-    def fetch_channel_documents(self, teams, teams_obj, start_time, end_time, ids_list):
+    def fetch_channel_documents(self, teams_obj, start_time, end_time, ids_list, teams):
         """Fetches channel documents from Microsoft Teams
         :param teams: List of teams to fetch channels from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
@@ -102,7 +101,7 @@ class SyncMicrosoftTeams:
         return channel_documents
 
     def fetch_channel_messages(
-        self, channels, teams_obj, start_time, end_time, ids_list
+        self, teams_obj, start_time, end_time, ids_list, channels
     ):
         """Fetches channel messages from Microsoft Teams
         :param channels: List of channels to fetch channel messages and tabs from Microsoft Teams
@@ -116,7 +115,7 @@ class SyncMicrosoftTeams:
         )
         return channel_message_documents
 
-    def fetch_channel_tabs(self, channels, teams_obj, start_time, end_time, ids_list):
+    def fetch_channel_tabs(self, teams_obj, start_time, end_time, ids_list, channels):
         """Fetches channel tabs from Microsoft Teams
         :param channels: List of channels to fetch channel messages and tabs from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
@@ -143,33 +142,3 @@ class SyncMicrosoftTeams:
         """
         for user, permissions in user_permissions.items():
             self.add_permissions_to_queue(user, permissions)
-
-    def perform_sync(
-        self, object_type, ids_list, class_object, start_time, end_time, iterable_list
-    ):
-        """This method manages the multithreading in the Microsoft Teams objects
-        :param object_type: Microsoft Teams objects to call the functions
-        :param ids_list: Document ids list from respective doc id file
-        :param class_object: Respective class objects to fetch the data
-        :param iterable_list: Documents list to fetch the child objects
-        :param start_time: Start time to fetch the Mircosoft Teams objects
-        :param end_time: End time to fetch the Microsoft Teams objects
-        """
-
-        if not iterable_list:
-            return []
-
-        if object_type == constant.CHANNELS:
-            return self.fetch_channels(iterable_list, class_object, ids_list)
-        elif object_type == constant.CHANNEL_DOCUMENTS:
-            return self.fetch_channel_documents(
-                iterable_list, class_object, start_time, end_time, ids_list
-            )
-        elif object_type == constant.CHANNEL_MESSAGES:
-            return self.fetch_channel_messages(
-                iterable_list, class_object, start_time, end_time, ids_list
-            )
-        elif object_type == constant.CHANNEL_TABS:
-            return self.fetch_channel_tabs(
-                iterable_list, class_object, start_time, end_time, ids_list
-            )
