@@ -134,6 +134,8 @@ class SyncMicrosoftTeams:
             PermissionSyncCommand(
                 self.logger, self.config, workplace_search_client
             ).remove_all_permissions()
+        else:
+            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
     def sync_permissions(self, user_permissions):
         """Sync permissions of Microsoft Objects to Workplace Search

@@ -66,7 +66,7 @@ def check_response(logger, response, error_message, exception_message):
     """
     if not response:
         logger.error(error_message)
-        raise ValueError
+        return []
     try:
         response_data = response.get("value")
         return response_data

@@ -338,7 +338,10 @@ class MSTeamsChannels:
             drive_response = self.client.get(
                 f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives", constant.DRIVE, True, False, page_size=5000,
                 filter_query="/")
-            drive_response_data = check_response(self.logger, drive_response, "", "")
+            drive_response_data = check_response(
+                self.logger, drive_response,
+                f"Could not fetch channels document drives for team:{team_id} Error: {drive_response}",
+                f"Error while fetching channels document drives for team: {team_id} Error: {drive_response}")
             if drive_response_data:
                 for drive in drive_response_data:
                     drive_id = drive["id"]
@@ -364,7 +367,11 @@ class MSTeamsChannels:
                         children_response = self.client.get(
                             f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives/{drive_id}/items/{root_id}/children",
                             constant.DRIVE, True, False, page_size=5000, filter_query="/")
-                        children_response_data = check_response(self.logger, children_response, "", "")
+                        children_response_data = check_response(
+                            self.logger, children_response,
+                            f"Could not fetch channels document drive items for team:{team_id} Error: "
+                            f"{children_response}", "Error while fetching channels document drive items for team: "
+                            f"{team_id} Error: {children_response}")
                         if children_response_data:
                             document_schema = self.get_schema_fields("channel_documents", self.objects)
                             for child in children_response_data:
@@ -400,7 +407,10 @@ class MSTeamsChannels:
         folder_files_response = self.client.get(
             folder_files_url, constant.CHANNEL_DOCUMENTS, True, False, page_size=5000,
             filter_query=f"{start_time}/{end_time}")
-        folder_files_response_data = check_response(self.logger, folder_files_response, "", "")
+        folder_files_response_data = check_response(
+            self.logger, folder_files_response,
+            f"Could not fetch folder documents for team:{team_id} Error: {folder_files_response}",
+            f"Error while fetching folder documents for team: {team_id} Error: {folder_files_response}")
         if folder_files_response_data:
             for document in folder_files_response_data:
                 # Logic to append recursive files/folders for deletion

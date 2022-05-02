@@ -112,14 +112,14 @@ class MSTeamsClient:
                         url = response_data.get("@odata.nextLink")
                         if not url or url == request_url:
                             paginate_query = None
-                        break
+                            break
                     elif is_pagination and is_filter:
                         response_data = self.get_response_data(response)
                         response_list["value"].extend(response_data.get("value"))
                         url = response_data.get("@odata.nextLink")
                         if not url:
                             paginate_query = None
-                        break
+                            break
                     elif not (object_type in [
                             constant.CHANNELS, constant.ROOT, constant.ATTACHMENTS] or is_pagination or is_filter):
                         response_data = self.get_response_data(response)
@@ -152,7 +152,7 @@ class MSTeamsClient:
                         continue
                     if response.status_code == 429:
                         self.logger.info("Getting too many requests, retrying to fetch the documents...")
-                        time.sleep(int(response.headers["Retry-After"]))
+                        time.sleep(int(response.headers.get("Retry-After", 60)))
                         continue
                     response_data = self.get_response_data(response)
                     # Error 403 occurs when the current user is trying fetch the Teams and it's object which was
