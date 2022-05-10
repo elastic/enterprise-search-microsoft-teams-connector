@@ -108,7 +108,8 @@ class BaseCommand:
 
                 for future in as_completed(future_to_path):
                     try:
-                        documents.extend(future.result())
+                        if future.result():
+                            documents.extend(future.result())
                     except Exception as exception:
                         self.logger.exception(
                             f"Error while fetching the data from Microsoft Teams. Error {exception}"
@@ -178,40 +179,31 @@ class BaseCommand:
                 user_permissions = microsoft_teams_object.get_team_members()
                 sync_microsoft_teams.sync_permissions(user_permissions)
 
-            teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list)
+            teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list, False)
 
             configuration_objects = self.config.get_value("objects")
-            if "teams" in configuration_objects:
-                queue.append_to_queue(constant.TEAMS, teams)
 
             teams_partition_list = split_documents_into_equal_chunks(
                 teams, thread_count
             )
 
-            job_documents_list = self.create_jobs(
+            channels = self.create_jobs(
                 thread_count,
                 sync_microsoft_teams.fetch_channels,
                 (
                     microsoft_teams_object,
                     ids_list,
+                    False
                 ),
                 teams_partition_list,
             )
-
-            channels, channel_index_documents = [], []
-            for channel_data in job_documents_list:
-                channels.extend(channel_data["channels"])
-                channel_index_documents.extend(channel_data["channel_documents"])
-
-            if "channels" in configuration_objects:
-                queue.append_to_queue(constant.CHANNELS, channel_index_documents)
 
             channels_partition_list = split_documents_into_equal_chunks(
                 channels, thread_count
             )
 
             if "channel_messages" in configuration_objects:
-                channel_messages = self.create_jobs(
+                self.create_jobs(
                     thread_count,
                     sync_microsoft_teams.fetch_channel_messages,
                     (
@@ -219,13 +211,13 @@ class BaseCommand:
                         start_time,
                         end_time,
                         ids_list,
+                        False
                     ),
                     channels_partition_list,
                 )
-                queue.append_to_queue(constant.CHANNEL_MESSAGES, channel_messages)
 
             if "channel_tabs" in configuration_objects:
-                channel_tabs = self.create_jobs(
+                self.create_jobs(
                     thread_count,
                     sync_microsoft_teams.fetch_channel_tabs,
                     (
@@ -233,13 +225,13 @@ class BaseCommand:
                         start_time,
                         end_time,
                         ids_list,
+                        False
                     ),
                     channels_partition_list,
                 )
-                queue.append_to_queue(constant.CHANNEL_TABS, channel_tabs)
 
             if "channel_documents" in configuration_objects:
-                channel_documents = self.create_jobs(
+                self.create_jobs(
                     thread_count,
                     sync_microsoft_teams.fetch_channel_documents,
                     (
@@ -247,10 +239,10 @@ class BaseCommand:
                         start_time,
                         end_time,
                         ids_list,
+                        False
                     ),
                     teams_partition_list,
                 )
-                queue.append_to_queue(constant.CHANNEL_DOCUMENTS, channel_documents)
 
             storage_with_collection["global_keys"] = list(ids_list)
             self.local_storage.update_storage(

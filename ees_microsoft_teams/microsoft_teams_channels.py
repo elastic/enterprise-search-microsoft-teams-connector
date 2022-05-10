@@ -227,7 +227,7 @@ class MSTeamsChannels:
                             message_data["body"] += f"Attachment Replies:\n{replies_data}"
                         elif content:
                             message_data["body"] = f"{sender} - {content}\nReplies:\n"\
-                                                    f"{replies_data}"
+                                                   f"{replies_data}"
                         else:
                             message_data["body"] = f"Meeting Messages:\n{replies_data}"
                     if message_data:
@@ -370,7 +370,7 @@ class MSTeamsChannels:
                         children_response_data = check_response(
                             self.logger, children_response,
                             f"Could not fetch channels document drive items for team:{team_id} Error: "
-                            f"{children_response}", "Error while fetching channels document drive items for team: "
+                            f"{children_response}", f"Error while fetching channels document drive items for team: "
                             f"{team_id} Error: {children_response}")
                         if children_response_data:
                             document_schema = self.get_schema_fields("channel_documents", self.objects)

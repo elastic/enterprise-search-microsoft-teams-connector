@@ -13,6 +13,7 @@ import os
 
 from .local_storage import LocalStorage
 from .permission_sync_command import PermissionSyncCommand
+from . import constant
 
 
 class SyncMicrosoftTeams:
@@ -48,13 +49,14 @@ class SyncMicrosoftTeams:
 
     def fetch_user_chat_messages(
         self,
-        chats,
         chats_obj,
         ids_list,
         user_drive,
         start_time,
         end_time,
         user_attachment_token,
+        is_deletion,
+        chats
     ):
         """Fetches user chat messages and other chat objects from Microsoft Teams
         :param chats: List of chats to fetch its children objects
@@ -68,26 +70,33 @@ class SyncMicrosoftTeams:
         documents = chats_obj.get_user_chat_messages(
             ids_list, user_drive, chats, start_time, end_time, user_attachment_token
         )
-        return documents
+        if is_deletion:
+            return documents
+        self.queue.append_to_queue(constant.USER_CHATS_MESSAGE, documents)
 
-    def fetch_teams(self, teams_obj, ids_list):
+    def fetch_teams(self, teams_obj, ids_list, is_deletion):
         """Fetches teams from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
         """
         teams = teams_obj.get_all_teams(ids_list)
+        if not is_deletion:
+            self.queue.append_to_queue(constant.TEAMS, teams)
         return teams
 
-    def fetch_channels(self, teams_obj, ids_list, teams):
+    def fetch_channels(self, teams_obj, ids_list, is_deletion, teams):
         """Fetches channels from Microsoft Teams
         :param teams: List of teams to fetch the channels
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
         """
         channels, channel_documents = teams_obj.get_team_channels(teams, ids_list)
-        return [{"channels": channels, "channel_documents": channel_documents}]
+        if is_deletion:
+            return [{"channels": channels, "channel_documents": channel_documents}]
+        self.queue.append_to_queue(constant.CHANNELS, channel_documents)
+        return channels
 
-    def fetch_channel_documents(self, teams_obj, start_time, end_time, ids_list, teams):
+    def fetch_channel_documents(self, teams_obj, start_time, end_time, ids_list, is_deletion, teams):
         """Fetches channel documents from Microsoft Teams
         :param teams: List of teams to fetch channels from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
@@ -98,10 +107,12 @@ class SyncMicrosoftTeams:
         channel_documents = teams_obj.get_channel_documents(
             teams, ids_list, start_time, end_time
         )
-        return channel_documents
+        if is_deletion:
+            return channel_documents
+        self.queue.append_to_queue(constant.CHANNEL_DOCUMENTS, channel_documents)
 
     def fetch_channel_messages(
-        self, teams_obj, start_time, end_time, ids_list, channels
+        self, teams_obj, start_time, end_time, ids_list, is_deletion, channels
     ):
         """Fetches channel messages from Microsoft Teams
         :param channels: List of channels to fetch channel messages and tabs from Microsoft Teams
@@ -113,9 +124,11 @@ class SyncMicrosoftTeams:
         channel_message_documents = teams_obj.get_channel_messages(
             channels, ids_list, start_time, end_time
         )
-        return channel_message_documents
+        if is_deletion:
+            return channel_message_documents
+        self.queue.append_to_queue(constant.CHANNEL_MESSAGES, channel_message_documents)
 
-    def fetch_channel_tabs(self, teams_obj, start_time, end_time, ids_list, channels):
+    def fetch_channel_tabs(self, teams_obj, start_time, end_time, ids_list, is_deletion, channels):
         """Fetches channel tabs from Microsoft Teams
         :param channels: List of channels to fetch channel messages and tabs from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
@@ -126,7 +139,9 @@ class SyncMicrosoftTeams:
         tab_documents = teams_obj.get_channel_tabs(
             channels, ids_list, start_time, end_time
         )
-        return tab_documents
+        if is_deletion:
+            return tab_documents
+        self.queue.append_to_queue(constant.CHANNEL_TABS, tab_documents)
 
     def remove_permissions(self, workplace_search_client):
         """Removes the permissions from Workplace Search"""
