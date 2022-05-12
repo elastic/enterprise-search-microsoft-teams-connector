@@ -70,6 +70,12 @@ class IncrementalSyncCommand(BaseCommand):
         self.create_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
 
+        checkpoint = Checkpoint(self.logger, self.config)
+        for checkpoint_data in sync_es.checkpoint_list:
+            checkpoint.set_checkpoint(
+                checkpoint_data[0], checkpoint_data[1], checkpoint_data[2]
+            )
+
     def execute(self):
         """This function execute the start function."""
         queue = ConnectorQueue(self.logger)

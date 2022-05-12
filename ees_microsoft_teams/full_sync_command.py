@@ -14,6 +14,7 @@ from .base_command import BaseCommand
 from .connector_queue import ConnectorQueue
 from .sync_enterprise_search import SyncEnterpriseSearch
 from .sync_microsoft_teams import SyncMicrosoftTeams
+from .checkpointing import Checkpoint
 
 INDEXING_TYPE = "full"
 
@@ -63,6 +64,12 @@ class FullSyncCommand(BaseCommand):
 
         self.create_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
+
+        checkpoint = Checkpoint(self.logger, self.config)
+        for checkpoint_data in sync_es.checkpoint_list:
+            checkpoint.set_checkpoint(
+                checkpoint_data[0], checkpoint_data[1], checkpoint_data[2]
+            )
 
     def execute(self):
         """This function execute the start function."""

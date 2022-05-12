@@ -4,12 +4,13 @@
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
 
+from elastic_enterprise_search import BadGatewayError, InternalServerError
 import pandas as pd
 from iteration_utilities import unique_everseen
 
 from . import constant
-from .checkpointing import Checkpoint
-from .utils import split_documents_into_equal_chunks, split_list_into_buckets
+from .utils import retry, split_documents_into_equal_chunks, split_list_into_buckets
+PERMISSION_LIMIT = 1024
 
 
 class SyncEnterpriseSearch:
@@ -24,6 +25,7 @@ class SyncEnterpriseSearch:
             "enterprise_search_sync_thread_count"
         )
         self.queue = queue
+        self.checkpoint_list = []
 
     def get_records_by_types(self, documents):
         """This method is used to for grouping the document based on their type
@@ -45,6 +47,7 @@ class SyncEnterpriseSearch:
         """
         return item["id"] == id
 
+    @retry(exception_list=(BadGatewayError, InternalServerError))
     def index_documents(self, documents):
         """This method indexes the documents to the workplace.
         :param documents: Documents to be indexed into the Workplace Search
@@ -52,9 +55,18 @@ class SyncEnterpriseSearch:
         if documents:
             total_records_dict = self.get_records_by_types(documents)
             for chunk in split_list_into_buckets(documents, constant.BATCH_SIZE):
-                response = self.workplace_search_client.index_documents(
-                    content_source_id=self.ws_source, documents=chunk
-                )
+                try:
+                    response = self.workplace_search_client.index_documents(
+                        content_source_id=self.ws_source,
+                        documents=chunk,
+                        request_timeout=constant.CONNECTION_TIMEOUT
+                    )
+                except InternalServerError:
+                    raise InternalServerError("Error while indexing the documents due to Internal Server error.")
+                except BadGatewayError:
+                    raise BadGatewayError("Error while indexing the documents due to Bad Gateway error.")
+                except Exception as exception:
+                    raise Exception(f"Error while indexing the documents. Error: {exception}")
                 for each in response["results"]:
                     if each["errors"]:
                         item = list(
@@ -82,13 +94,15 @@ class SyncEnterpriseSearch:
         """
         try:
             for user_permission in permission_dict:
-                self.workplace_search_client.add_user_permissions(
-                    content_source_id=self.config.get_value(
-                        "enterprise_search.source_id"
-                    ),
-                    user=user_permission["user"],
-                    body={"permissions": user_permission["roles"]},
-                )
+                permissions_list = split_documents_into_equal_chunks(user_permission["roles"], PERMISSION_LIMIT)
+                for permissions in permissions_list:
+                    self.workplace_search_client.add_user_permissions(
+                        content_source_id=self.config.get_value(
+                            "enterprise_search.source_id"
+                        ),
+                        user=user_permission["user"],
+                        body={"permissions": permissions},
+                    )
                 self.logger.info(
                     f"Successfully indexed the permissions for user {user_permission['user']} to the workplace"
                 )
@@ -101,7 +115,6 @@ class SyncEnterpriseSearch:
 
     def perform_sync(self):
         """Pull documents from the queue and synchronize it to the Enterprise Search."""
-        checkpoint = Checkpoint(self.logger, self.config)
         signal_open = True
         while signal_open:
             for _ in range(0, self.enterprise_search_thread_count):
@@ -112,11 +125,7 @@ class SyncEnterpriseSearch:
                         signal_open = False
                         break
                     elif documents.get("type") == "checkpoint":
-                        checkpoint.set_checkpoint(
-                            documents.get("data")[0],
-                            documents.get("data")[1],
-                            documents.get("data")[2],
-                        )
+                        self.checkpoint_list.append(documents.get("data"))
                         break
                     elif documents.get("type") == "permissions":
                         permission_documents.append(documents.get("data"))
