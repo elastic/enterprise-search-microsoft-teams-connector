@@ -19,6 +19,7 @@ class SyncEnterpriseSearch:
     def __init__(self, config, logger, workplace_search_client, queue):
         self.config = config
         self.logger = logger
+        self.retry_count = config.get_value("retry_count")
         self.workplace_search_client = workplace_search_client
         self.ws_source = config.get_value("enterprise_search.source_id")
         self.enterprise_search_thread_count = config.get_value(
