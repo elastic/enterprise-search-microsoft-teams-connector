@@ -11,9 +11,8 @@
 import csv
 import os
 
-from .local_storage import LocalStorage
-from .permission_sync_command import PermissionSyncCommand
 from . import constant
+from .local_storage import LocalStorage
 
 
 class SyncMicrosoftTeams:
@@ -46,33 +45,6 @@ class SyncMicrosoftTeams:
         user_name = rows.get(user, user)
         permission_dict = {"user": user_name, "roles": roles}
         self.queue.append_to_queue("permissions", permission_dict)
-
-    def fetch_user_chat_messages(
-        self,
-        chats_obj,
-        ids_list,
-        user_drive,
-        start_time,
-        end_time,
-        user_attachment_token,
-        is_deletion,
-        chats
-    ):
-        """Fetches user chat messages and other chat objects from Microsoft Teams
-        :param chats: List of chats to fetch its children objects
-        :param chats_obj: Chats class object to fetch the chats
-        :param ids_list: Document ids list from respective doc id file
-        :param user_drive: User Drive to store user related details
-        :param start_time: Start time for fetching the user chats data
-        :param end_time: End time for fetching the user chats data
-        :param user_attachment_token: Access token for fecthing the user chat attachments
-        """
-        documents = chats_obj.get_user_chat_messages(
-            ids_list, user_drive, chats, start_time, end_time, user_attachment_token
-        )
-        if is_deletion:
-            return documents
-        self.queue.append_to_queue(constant.USER_CHATS_MESSAGE, documents)
 
     def fetch_teams(self, teams_obj, ids_list, is_deletion):
         """Fetches teams from Microsoft Teams
@@ -142,15 +114,6 @@ class SyncMicrosoftTeams:
         if is_deletion:
             return tab_documents
         self.queue.append_to_queue(constant.CHANNEL_TABS, tab_documents)
-
-    def remove_permissions(self, workplace_search_client):
-        """Removes the permissions from Workplace Search"""
-        if self.config.get_value("enable_document_permission"):
-            PermissionSyncCommand(
-                self.logger, self.config, workplace_search_client
-            ).remove_all_permissions()
-        else:
-            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
     def sync_permissions(self, user_permissions):
         """Sync permissions of Microsoft Objects to Workplace Search

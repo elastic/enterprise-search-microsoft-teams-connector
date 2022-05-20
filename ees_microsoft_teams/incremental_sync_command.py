@@ -23,7 +23,7 @@ INDEXING_TYPE = "incremental"
 
 
 class IncrementalSyncCommand(BaseCommand):
-    """This class start executions of incrementalsync feature."""
+    """This class start executions of incremental sync feature."""
 
     def start_producer(self, queue):
         """This method starts async calls for the producer which is responsible for fetching documents from
@@ -36,12 +36,16 @@ class IncrementalSyncCommand(BaseCommand):
         sync_microsoft_teams = SyncMicrosoftTeams(
             INDEXING_TYPE, self.config, self.logger, queue
         )
-        sync_microsoft_teams.remove_permissions(self.workplace_search_client)
 
         checkpoint = Checkpoint(self.logger, self.config)
         teams_start_time, teams_end_time = checkpoint.get_checkpoint(
             constant.CURRENT_TIME, "teams"
         )
+
+        if self.config.get_value("enable_document_permission"):
+            self.remove_object_permissions(teams_start_time, teams_end_time)
+        else:
+            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
         self.create_jobs_for_teams(
             INDEXING_TYPE,
@@ -83,4 +87,4 @@ class IncrementalSyncCommand(BaseCommand):
 
         self.start_producer(queue)
         self.start_consumer(queue)
-        self.logger.info("Completed Incrmental sync")
+        self.logger.info("Completed Incremental sync")

@@ -11,10 +11,10 @@
 
 from . import constant
 from .base_command import BaseCommand
+from .checkpointing import Checkpoint
 from .connector_queue import ConnectorQueue
 from .sync_enterprise_search import SyncEnterpriseSearch
 from .sync_microsoft_teams import SyncMicrosoftTeams
-from .checkpointing import Checkpoint
 
 INDEXING_TYPE = "full"
 
@@ -33,10 +33,13 @@ class FullSyncCommand(BaseCommand):
         sync_microsoft_teams = SyncMicrosoftTeams(
             INDEXING_TYPE, self.config, self.logger, queue
         )
-        sync_microsoft_teams.remove_permissions(self.workplace_search_client)
-
         start_time = self.config.get_value("start_time")
         end_time = constant.CURRENT_TIME
+
+        if self.config.get_value("enable_document_permission"):
+            self.remove_object_permissions(start_time, end_time)
+        else:
+            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
         self.create_jobs_for_teams(
             INDEXING_TYPE,

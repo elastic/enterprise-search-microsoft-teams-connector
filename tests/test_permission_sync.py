@@ -23,45 +23,38 @@ CONFIG_FILE = os.path.join(
 
 def settings():
     """This function loads configuration from the file and returns it along with retry_count setting."""
-    configuration = Configuration(
-        file_name=CONFIG_FILE
-    )
+    configuration = Configuration(file_name=CONFIG_FILE)
 
     logger = logging.getLogger("unit_test_permission")
     return configuration, logger
 
 
 def create_permission_sync_obj():
-    """This function create permission object for test.
-    """
+    """This function create permission object for test."""
     configs, logger = settings()
     enterprise_search_host = configs.get_value("enterprise_search.host_url")
     workplace_search_client = WorkplaceSearch(
         enterprise_search_host,
-        http_auth=configs.get_value(
-            "enterprise_search.api_key"
-        ),
+        http_auth=configs.get_value("enterprise_search.api_key"),
     )
     return PermissionSyncCommand(logger, configs, workplace_search_client)
 
 
-def test_remove_all_permissions():
+def test_list_user_permissions():
     """Test method for removing all the permissions from workplace search"""
-    configs, _ = settings()
     permission_sync_obj = create_permission_sync_obj()
-    mocked_respose = {"results": [{"user": "user1", "permissions": ["permission1"]}]}
+
+    mock_response = {
+                        "results": [
+                            {
+                                "user": "Dummy",
+                                "permissions": ["19"],
+                            }
+                        ],
+                    }
+
     permission_sync_obj.workplace_search_client.list_permissions = Mock(
-        return_value=mocked_respose
+        return_value=mock_response
     )
-    permission_sync_obj.workplace_search_client.remove_user_permissions = Mock(
-        return_value=True
-    )
-    permission_sync_obj.remove_all_permissions()
-    enterprise_search_host = configs.get_value("enterprise_search.source_id")
-    permission_sync_obj.workplace_search_client.list_permissions.assert_called_with(
-        content_source_id=enterprise_search_host)
-    permission_sync_obj.workplace_search_client.remove_user_permissions.assert_called_with(
-        content_source_id=enterprise_search_host,
-        user='user1',
-        body={"permissions": ["permission1"]}
-    )
+    target_permission = permission_sync_obj.list_user_permissions()
+    assert target_permission == {"Dummy": ["19"]}
