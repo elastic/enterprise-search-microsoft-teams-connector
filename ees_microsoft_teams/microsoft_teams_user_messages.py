@@ -88,8 +88,7 @@ class MSTeamsUserMessage:
                     item_id = user_drive.get(user_id).get(drive_id)
                 else:
                     users_root_response = attachment_client.get(
-                        f"{constant.GRAPH_BASE_URL}/drives/{drive_id}/"
-                        f"items/root/children",
+                        f"{constant.GRAPH_BASE_URL}/drives/{drive_id}/items/root/children",
                         constant.ATTACHMENTS,
                         False,
                         False,
@@ -113,8 +112,8 @@ class MSTeamsUserMessage:
                 insert_document_into_doc_id_storage(
                     ids_list, item_id, constant.USER_CHAT_DRIVE_ITEM, drive_id, user_id
                 )
-                final_attachment_url = f"{constant.GRAPH_BASE_URL}/drives/{drive_id}/items/{item_id}/children?$filter="
-                f"name eq '{url_encode(attachment_name)}'"
+                final_attachment_url = f"{constant.GRAPH_BASE_URL}/drives/{drive_id}/items/{item_id}/children?" \
+                    f"$filter=name eq '{url_encode(attachment_name)}'"
                 attachment_response = attachment_client.get(
                     final_attachment_url,
                     constant.ATTACHMENTS,
@@ -219,9 +218,8 @@ class MSTeamsUserMessage:
         Returns: recording_dict: Document to be indexed in Workplace Search
         """
         if (
-            chat["eventDetail"]
-            and chat["eventDetail"]["@odata.type"]
-            == "#microsoft.graph.callRecordingEventMessageDetail"
+            chat["eventDetail"] and chat["eventDetail"][
+                "@odata.type"] == "#microsoft.graph.callRecordingEventMessageDetail"
         ):
             url = chat["eventDetail"].get("callRecordingUrl")
             if url and ".sharepoint.com" in url:

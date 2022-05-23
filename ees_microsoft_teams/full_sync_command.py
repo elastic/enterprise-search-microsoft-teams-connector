@@ -11,6 +11,7 @@
 
 from . import constant
 from .base_command import BaseCommand
+from .checkpointing import Checkpoint
 from .connector_queue import ConnectorQueue
 from .sync_enterprise_search import SyncEnterpriseSearch
 from .sync_microsoft_teams import SyncMicrosoftTeams
@@ -32,10 +33,13 @@ class FullSyncCommand(BaseCommand):
         sync_microsoft_teams = SyncMicrosoftTeams(
             INDEXING_TYPE, self.config, self.logger, queue
         )
-        sync_microsoft_teams.remove_permissions(self.workplace_search_client)
-
         start_time = self.config.get_value("start_time")
         end_time = constant.CURRENT_TIME
+
+        if self.config.get_value("enable_document_permission"):
+            self.remove_object_permissions(start_time, end_time)
+        else:
+            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
         self.create_jobs_for_user_chats(
             INDEXING_TYPE,
@@ -63,6 +67,10 @@ class FullSyncCommand(BaseCommand):
 
         self.create_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
+
+        checkpoint = Checkpoint(self.logger, self.config)
+        for checkpoint_data in sync_es.checkpoint_list:
+            checkpoint.set_checkpoint(*checkpoint_data[:3])
 
     def execute(self):
         """This function execute the start function."""
