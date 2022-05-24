@@ -47,8 +47,8 @@ class MSTeamsClient:
             datetime_filter_column_name="lastModifiedDateTime", is_pandas_series=False):
         """ Invokes a GET call to the Microsoft Graph API
             :param url: Base url to call the Graph API
-            :param object_type: Parameter name whether it is teams, channels, channel_chat, channel_docs, calendar,
-                user_chats, permissions or deletion
+            :param object_type: The type of the object to get. The allowed values are teams, channels, channel_chat,
+                channel_docs, calendar, user_chats, permissions and deletion
             :param is_pagination: Flag to check if pagination is enabled
             :param is_filter: Flag to check if filter is enabled
             :param page_size: Size of the top variable for pagination
@@ -62,22 +62,8 @@ class MSTeamsClient:
         flag = True
         paginate_query = True
         while paginate_query:
-            if flag and is_pagination and is_filter:
-                paginate_query = f"?$filter={filter_query}&$top={page_size}"
-            elif flag and is_pagination and not is_filter:
-                if object_type == constant.CHATS:
-                    paginate_query = f"&$top={page_size}"
-                else:
-                    paginate_query = f"?$top={page_size}"
-                start_time = filter_query.split("/")[0]
-                end_time = filter_query.split("/")[1]
-            elif is_filter and not is_pagination:
-                paginate_query = f"?$filter={filter_query}"
-            else:
-                if object_type not in [constant.CHANNELS, constant.CALENDAR]:
-                    start_time = filter_query.split("/")[0]
-                    end_time = filter_query.split("/")[1]
-                paginate_query = " "
+            paginate_query, start_time, end_time = self.get_paginate_query(
+                flag, is_pagination, is_filter, page_size, filter_query, object_type)
 
             request_url = f"{url}{paginate_query.strip()}"
             flag = False
@@ -154,23 +140,7 @@ class MSTeamsClient:
                         self.logger.info("Getting too many requests, retrying to fetch the documents...")
                         time.sleep(int(response.headers.get("Retry-After", 60)))
                         continue
-                    response_data = self.get_response_data(response)
-                    # Error 403 occurs when the current user is trying fetch the Teams and it's object which was
-                    # created by other user
-                    if response.status_code == 403 or (
-                            response.status_code == 404 and response_data.get("error", {}).get("code") == "NotFound"):
-                        if object_type in [constant.CHANNELS, constant.ATTACHMENTS, constant.ROOT]:
-                            new_response = Response()
-                            new_response._content = b'{"value": []}'
-                            new_response.status_code = 200
-                            return new_response
-                        else:
-                            return {"value": []}
-                    elif not (object_type == 'deletion' and response.status_code == 404):
-                        self.logger.error(
-                            f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, "
-                            f"url: {request_url}.")
-                    return response
+                    return self.handle_4xx_errors(response, object_type, request_url)
                 else:
                     paginate_query = None
                     raise ResponseException(
@@ -192,8 +162,8 @@ class MSTeamsClient:
 
     def regenerate_token(self, object_type):
         """ Regenerates the access token in case of access token has expired
-            :param object_type: Parameter name whether it is teams, channels, channel_chat, channel_docs, calendar,
-                user_chats, permissions or deletion
+            :param object_type: The type of the object to get. The allowed values are teams, channels, channel_chat,
+                channel_docs, calendar, user_chats, permissions and deletion
         """
         self.logger.info("Access Token has expired. Regenerating the access token...")
         token = MSALAccessToken(self.logger, self.config)
@@ -207,3 +177,57 @@ class MSTeamsClient:
         self.request_header = {
             "Authorization": f"Bearer {self.access_token}"
         }
+
+    def handle_4xx_errors(self, response, object_type, request_url):
+        """ Returns the response when 4xx error occurs
+        :param response: Response from Microsoft Graph API request
+        :param object_type: The type of the object to get. The allowed values are teams, channels, channel_chat,
+            channel_docs, calendar, user_chats, permissions and deletion
+        :param request_url: Request URL for logging the message
+        """
+        response_data = self.get_response_data(response)
+        # Error 403 occurs when the current user is trying fetch the Teams and it's object which was
+        # created by other user
+        if response.status_code == 403 or (
+                response.status_code == 404 and response_data.get("error", {}).get("code") == "NotFound"):
+            if object_type in [constant.CHANNELS, constant.ATTACHMENTS, constant.ROOT]:
+                new_response = Response()
+                new_response._content = b'{"value": []}'
+                new_response.status_code = 200
+                return new_response
+            else:
+                return {"value": []}
+        elif not (object_type == 'deletion' and response.status_code == 404):
+            self.logger.error(
+                f"Error: {response.reason}. Error while fetching {object_type} from Microsoft Teams, "
+                f"url: {request_url}.")
+        return response
+
+    def get_paginate_query(self, flag, is_pagination, is_filter, page_size, filter_query, object_type):
+        """ Get paginate_query according to the pagination and filtration
+        :param flag: Flag to check if the loop is running for the first time
+        :param is_pagination: Flag to check if pagination is enabled
+        :param is_filter: Flag to check if filter is enabled
+        :param page_size: Size of the top variable for pagination
+        :param filter_query: Filter query if filter is enabled
+        :param object_type: The type of the object to get. The allowed values are teams, channels, channel_chat,
+            channel_docs, calendar, user_chats, permissions and deletion
+        """
+        start_time, end_time = "", ""
+        if flag and is_pagination and is_filter:
+            paginate_query = f"?$filter={filter_query}&$top={page_size}"
+        elif flag and is_pagination and not is_filter:
+            if object_type == constant.CHATS:
+                paginate_query = f"&$top={page_size}"
+            else:
+                paginate_query = f"?$top={page_size}"
+            start_time = filter_query.split("/")[0]
+            end_time = filter_query.split("/")[1]
+        elif is_filter and not is_pagination:
+            paginate_query = f"?$filter={filter_query}"
+        else:
+            if object_type not in [constant.CHANNELS, constant.CALENDAR]:
+                start_time = filter_query.split("/")[0]
+                end_time = filter_query.split("/")[1]
+            paginate_query = " "
+        return paginate_query, start_time, end_time

@@ -76,9 +76,7 @@ class IncrementalSyncCommand(BaseCommand):
 
         checkpoint = Checkpoint(self.logger, self.config)
         for checkpoint_data in sync_es.checkpoint_list:
-            checkpoint.set_checkpoint(
-                checkpoint_data[0], checkpoint_data[1], checkpoint_data[2]
-            )
+            checkpoint.set_checkpoint(*checkpoint_data[:3])
 
     def execute(self):
         """This function execute the start function."""

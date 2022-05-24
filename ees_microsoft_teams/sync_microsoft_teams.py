@@ -39,8 +39,7 @@ class SyncMicrosoftTeams:
             mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0
         ):
             with open(mapping_sheet_path, encoding="UTF-8") as file:
-                csvreader = csv.reader(file)
-                for row in csvreader:
+                for row in csv.reader(file):
                     rows[row[0]] = row[1]
         user_name = rows.get(user, user)
         permission_dict = {"user": user_name, "roles": roles}

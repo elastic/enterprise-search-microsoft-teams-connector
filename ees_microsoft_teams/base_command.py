@@ -11,6 +11,7 @@
 """
 
 import csv
+import functools
 import logging
 import os
 
@@ -101,28 +102,28 @@ class BaseCommand:
         :param args: Arguments for the targeted function
         :param iterable_list: List to iterate over and create thread
         """
-        documents = []
-        # If iterable_list is present, then iterate over the list and pass each list element
-        # as an argument to the async function, else iterate over number of threads configured
-        if iterable_list:
-            with ThreadPoolExecutor(max_workers=thread_count) as executor:
-                future_to_path = {
-                    executor.submit(func, *args, list_element): list_element
-                    for list_element in iterable_list
-                }
 
-                for future in as_completed(future_to_path):
-                    try:
-                        if future.result():
-                            documents.extend(future.result())
-                    except Exception as exception:
-                        self.logger.exception(
-                            f"Error while fetching the data from Microsoft Teams. Error {exception}"
-                        )
+        callables = []
+        if iterable_list:
+            for list_element in iterable_list:
+                callables.append(functools.partial(func, *args, list_element))
         else:
-            with ThreadPoolExecutor(max_workers=thread_count) as executor:
-                for _ in range(thread_count):
-                    executor.submit(func)
+            callables.append(func)
+
+        documents = []
+        with ThreadPoolExecutor(max_workers=thread_count) as executor:
+            future_to_path = {
+                executor.submit(list_element): list_element
+                for list_element in callables
+            }
+            for future in as_completed(future_to_path):
+                try:
+                    if future.result():
+                        documents.extend(future.result())
+                except Exception as exception:
+                    self.logger.exception(
+                        f"Error while fetching the data from Microsoft Teams. Error {exception}"
+                    )
         return documents
 
     @cached_property
@@ -134,8 +135,7 @@ class BaseCommand:
         """Get access token for fetching the data
         :param is_acquire_for_client: Flag for fetching the access token
         """
-        msal_access_token = MSALAccessToken(self.logger, self.config)
-        return msal_access_token.get_token(is_acquire_for_client)
+        return MSALAccessToken(self.logger, self.config).get_token(is_acquire_for_client)
 
     def microsoft_team_channel_object(self, access_token):
         """Get the object for fetching the teams and its children"""
@@ -152,8 +152,7 @@ class BaseCommand:
             mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0
         ):
             with open(mapping_sheet_path, encoding="UTF-8") as file:
-                csvreader = csv.reader(file)
-                for row in csvreader:
+                for row in csv.reader(file):
                     rows[row[0]] = row[1]
         return rows
 
@@ -167,8 +166,8 @@ class BaseCommand:
         for ms_team_user, permissions in object_permissions.items():
             ms_team_user = mapped_users.get(ms_team_user, ms_team_user)
             if ms_team_user.lower() == ws_user.lower():
-                ws_permissions = list(set(ws_permissions).difference(permissions))
-        return ws_permissions
+                ws_permissions = set(ws_permissions).difference(permissions)
+        return list(ws_permissions)
 
     def remove_object_permissions(self, start_time, end_time):
         """Remove the permissions of the users removed from the Microsoft Teams objects
@@ -190,8 +189,7 @@ class BaseCommand:
 
         for ws_user, ws_permissions in ws_user_permissions.items():
             ws_permissions = self.manage_permissions(teams_permissions, ws_user, ws_permissions)
-            deleted_user_permissions = {"user": ws_user, "permissions": ws_permissions}
-            deleted_permissions_list.append(deleted_user_permissions)
+            deleted_permissions_list.append({"user": ws_user, "permissions": ws_permissions})
 
         for permission_dict in deleted_permissions_list:
             if permission_dict['permissions']:

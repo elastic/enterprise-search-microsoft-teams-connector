@@ -44,6 +44,7 @@ class LocalStorage:
                 self.logger.exception(
                     f"Error while updating the doc_id json file. Error: {exception}"
                 )
+                raise exception
 
     def create_local_storage_directory(self):
         """Creates a doc_id directory if not present"""

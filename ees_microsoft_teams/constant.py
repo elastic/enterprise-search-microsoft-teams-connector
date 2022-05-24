@@ -29,7 +29,7 @@ USER_CHAT_DRIVE_ITEM = "User Chat Drive Item"
 USER_CHAT_DRIVE = "User Chat Drive"
 USER = "User"
 BATCH_SIZE = 100
-CONNECTION_TIMEOUT = 100000
+CONNECTION_TIMEOUT = 100000  # Timeout in seconds
 MIMETYPES = [
     "audio/aac", "video/x-msvideo", "application/x-cdf", "audio/midi audio/x-midi", "audio/mpeg", "audio/mp4",
     "video/mp4", "video/mpeg", "audio/ogg", "video/ogg", "audio/opus", "audio/wav", "audio/webm", "video/webm",

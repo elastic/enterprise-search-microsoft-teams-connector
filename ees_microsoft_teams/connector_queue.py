@@ -3,17 +3,15 @@
 # or more contributor license agreements. Licensed under the Elastic License 2.0;
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
-import multiprocessing
 import threading
-from multiprocessing.queues import Queue
+from queue import Queue
 
 
 class ConnectorQueue(Queue):
     """Class to support additional queue operations specific to the connector"""
 
     def __init__(self, logger):
-        ctx = multiprocessing.get_context()
-        super(ConnectorQueue, self).__init__(ctx=ctx)
+        super(ConnectorQueue, self).__init__()
         self.logger = logger
 
     def end_signal(self):

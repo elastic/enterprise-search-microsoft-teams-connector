@@ -9,7 +9,7 @@ import pandas as pd
 from iteration_utilities import unique_everseen
 
 from . import constant
-from .utils import retry, split_documents_into_equal_chunks, split_list_into_buckets
+from .utils import split_documents_into_equal_chunks, split_list_into_buckets
 PERMISSION_LIMIT = 1024
 
 
@@ -48,7 +48,6 @@ class SyncEnterpriseSearch:
         """
         return item["id"] == id
 
-    @retry(exception_list=(BadGatewayError, InternalServerError))
     def index_documents(self, documents):
         """This method indexes the documents to the workplace.
         :param documents: Documents to be indexed into the Workplace Search
