@@ -51,7 +51,7 @@ class SyncMicrosoftTeams:
         :param ids_list: Document ids list from respective doc id file
         """
         teams = teams_obj.get_all_teams(ids_list)
-        if not is_deletion:
+        if not is_deletion and "teams" in self.objects:
             self.queue.append_to_queue(constant.TEAMS, teams)
         return teams
 
@@ -64,7 +64,8 @@ class SyncMicrosoftTeams:
         channels, channel_documents = teams_obj.get_team_channels(teams, ids_list)
         if is_deletion:
             return [{"channels": channels, "channel_documents": channel_documents}]
-        self.queue.append_to_queue(constant.CHANNELS, channel_documents)
+        if "channels" in self.objects:
+            self.queue.append_to_queue(constant.CHANNELS, channel_documents)
         return channels
 
     def fetch_channel_documents(self, teams_obj, start_time, end_time, ids_list, is_deletion, teams):
