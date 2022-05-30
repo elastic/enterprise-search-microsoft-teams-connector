@@ -185,7 +185,7 @@ schema = {
         'required': False,
         'type': 'string',
         'default': 'INFO',
-        'allowed': ['DEBUG', 'INFO', 'WARNING', 'ERROR '],
+        'allowed': ['DEBUG', 'INFO', 'WARNING', 'ERROR'],
         'empty': False
     },
     'retry_count': {
@@ -198,10 +198,16 @@ schema = {
         'required': False,
         'type': 'string'
     },
-    'max_threads': {
+    'ms_teams_sync_thread_count': {
         'required': False,
         'type': 'integer',
-        'default': 40,
+        'default': 5,
+        'min': 1
+    },
+    'enterprise_search_sync_thread_count': {
+        'required': False,
+        'type': 'integer',
+        'default': 5,
         'min': 1
     }
 }
