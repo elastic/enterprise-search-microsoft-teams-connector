@@ -66,7 +66,7 @@ def check_response(logger, response, error_message, exception_message):
     """
     if not response:
         logger.error(error_message)
-        raise ValueError
+        return []
     try:
         response_data = response.get("value")
         return response_data
@@ -120,8 +120,8 @@ def retry(exception_list):
                     return func(self, *args, **kwargs)
                 except exception_list as exception:
                     self.logger.exception(
-                        f'Error while connecting to the Microsoft Teams. Retry count: {retry} out of {self.retry_count}. \
-                            Error: {exception}'
+                        f"Error while connecting to the Microsoft Teams. Retry count: {retry} out of "
+                        f"{self.retry_count}. Error: {exception}"
                     )
                     time.sleep(2 ** retry)
                     retry += 1
@@ -161,6 +161,23 @@ def split_list_into_buckets(object_list, total_groups):
         return group_list
     else:
         return []
+
+
+def split_documents_into_equal_chunks(documents, chunk_size):
+    """This method splits a list or dictionary into equal chunks size
+    :param documents: List or Dictionary to be partitioned into chunks
+    :param chunk_size: Maximum size of a chunk
+    Returns:
+        list_of_chunks: List containing the chunks
+    """
+    list_of_chunks = []
+    for i in range(0, len(documents), chunk_size):
+        if type(documents) is dict:
+            partitioned_chunk = list(documents.items())[i: i + chunk_size]
+            list_of_chunks.append(dict(partitioned_chunk))
+        else:
+            list_of_chunks.append(documents[i: i + chunk_size])
+    return list_of_chunks
 
 
 def get_thread_results(thread_results):
