@@ -8,14 +8,10 @@
     It's possible to run full syncs and incremental syncs with this module.
 """
 
-import csv
-import os
 
 # from soupsieve import match
 from . import constant
 from .local_storage import LocalStorage
-from .msal_access_token import MSALAccessToken
-from .permission_sync_command import PermissionSyncCommand
 
 
 class SyncMicrosoftTeams:

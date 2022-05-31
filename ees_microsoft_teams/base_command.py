@@ -27,7 +27,7 @@ from .configuration import Configuration
 from .local_storage import LocalStorage
 from .microsoft_teams_calendars import MSTeamsCalendar
 from .msal_access_token import MSALAccessToken
-from .utils import get_schema_fields, split_documents_into_equal_chunks
+from .utils import get_schema_fields
 
 
 class BaseCommand:

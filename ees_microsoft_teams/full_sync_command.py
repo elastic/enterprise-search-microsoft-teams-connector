@@ -29,7 +29,6 @@ class FullSyncCommand(BaseCommand):
         """
         self.logger.debug("Starting producer for fetching objects from Microsoft Teams")
 
-        thread_count = self.config.get_value("ms_teams_sync_thread_count")
         sync_microsoft_teams = SyncMicrosoftTeams(
             INDEXING_TYPE, self.config, self.logger, queue
         )

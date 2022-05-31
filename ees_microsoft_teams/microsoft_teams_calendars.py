@@ -48,27 +48,33 @@ class MSTeamsCalendar:
             # If type of meeting  is yearly so body will be: Recurrence: Occurs every year on day 5 of march starting
             # {date} until {enddate}
             elif pattern['type'] in ['absoluteYearly', 'relativeYearly']:
-                day_pattern = f"on day {pattern['dayOfMonth']}" if pattern['dayOfMonth'] else f"on {pattern['index']} {','.join(pattern['daysOfWeek'])}"
+                day_pattern = f"on day {pattern['dayOfMonth']}" if pattern[
+                    'dayOfMonth'] else f"on {pattern['index']} {','.join(pattern['daysOfWeek'])}"
                 days = f"year {day_pattern} of {cal.month_name[pattern['month']]}"
             # If type of meeting  is monthly so body will be: Recurrence: Occurs every month on day 5 of march
             # starting {date} until {enddate}
             elif pattern['type'] in ['absoluteMonthly', 'relativeMonthly']:
-                days_pattern = f"on day {pattern['dayOfMonth']}" if pattern['dayOfMonth'] else f"on {pattern['index']} {','.join(pattern['daysOfWeek'])}"
+                days_pattern = f"on day {pattern['dayOfMonth']}" if pattern[
+                    'dayOfMonth'] else f"on {pattern['index']} {','.join(pattern['daysOfWeek'])}"
                 days = f"{occurrence} month {days_pattern}"
             # Else goes in weekly situation where body will be: Recurrence: Occurs Every 3 week on monday,tuesday,
             # wednesday starting {date} until {enddate}
             else:
                 week = ','.join(pattern['daysOfWeek'])
                 days = f"{occurrence} week on {week}"
-            date = f"{range['startDate']}" if range['type'] == 'noEnd' else f"{range['startDate']} until {range['endDate']}"
+            date = f"{range['startDate']}" if range['type'] == 'noEnd' else f"{range['startDate']} "\
+                f"until {range['endDate']}"
             recurrance = f"Occurs Every {days} starting {date}"
-            body = f'Recurrence: {recurrance} \nOrganizer: {calendar["organizer"]["emailAddress"]["name"]} \nAttendees: {attendees} \nDescription: {calendar["bodyPreview"]}'
+            body = f'Recurrence: {recurrance} \nOrganizer: {calendar["organizer"]["emailAddress"]["name"]} '\
+                f'\nAttendees: {attendees} \nDescription: {calendar["bodyPreview"]}'
         else:
             start_time = datetime.strptime(calendar["start"]["dateTime"][: -4], USER_MEETING_DATETIME_FORMAT).strftime(
                 "%d %b, %Y at %H:%M")
             end_time = datetime.strptime(calendar["end"]["dateTime"][: -4], USER_MEETING_DATETIME_FORMAT).strftime(
                 "%d %b, %Y at %H:%M")
-            body = f'Schedule: {start_time} to {end_time} \nOrganizer: {calendar["organizer"]["emailAddress"]["name"]} \nAttendees: {attendees} \nDescription: {calendar["bodyPreview"]}'
+            body = f'Schedule: {start_time} to {end_time} \nOrganizer: '\
+                f'{calendar["organizer"]["emailAddress"]["name"]} \nAttendees: {attendees} '\
+                f'\nDescription: {calendar["bodyPreview"]}'
         return body
 
     def get_calendars(self, ids_list, start_time, end_time):
