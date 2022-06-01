@@ -13,9 +13,9 @@ import sys
 import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from ees_microsoft_teams.checkpointing import Checkpoint  # noqa
-from ees_microsoft_teams.configuration import Configuration  # noqa
-from ees_microsoft_teams.constant import DATETIME_FORMAT  # noqa
+from ees_microsoft_teams.checkpointing import Checkpoint
+from ees_microsoft_teams.configuration import Configuration
+from ees_microsoft_teams.constant import DATETIME_FORMAT
 
 CHECKPOINT_PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),

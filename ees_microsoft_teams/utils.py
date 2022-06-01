@@ -120,8 +120,8 @@ def retry(exception_list):
                     return func(self, *args, **kwargs)
                 except exception_list as exception:
                     self.logger.exception(
-                        f"Error while connecting to the Microsoft Teams. Retry count: {retry} out of "
-                        f"{self.retry_count}. Error: {exception}"
+                        f'Error while connecting to the Microsoft Teams. Retry count: {retry} out of {self.retry_count}. \
+                            Error: {exception}'
                     )
                     time.sleep(2 ** retry)
                     retry += 1
