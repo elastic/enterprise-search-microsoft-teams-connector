@@ -4,14 +4,16 @@
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
 
-from ees_microsoft_teams.configuration import Configuration
-from ees_microsoft_teams import utils
-import pytest
-import logging
+import math
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import logging
+
+import pytest
+from ees_microsoft_teams import utils
+from ees_microsoft_teams.configuration import Configuration
 
 
 def settings():
@@ -191,3 +193,29 @@ def test_get_records_by_types():
     ]
     target_records_type = utils.get_records_by_types(document)
     assert target_records_type == {'user_chats': 1}
+
+
+def test_split_documents_into_equal_chunks():
+    """Test the split of documents into equal chunk"""
+    document = [
+        {
+            "id": 0,
+            "title": "demo",
+            "body": "Not much. It is a made up thing.",
+            "url": "https://chats.microsoft.com/demo.txt",
+            "created_at": "2019-06-01T12:00:00+00:00",
+            "type": "user_chats",
+        },
+        {
+            "id": 1,
+            "title": "teams_demo",
+            "body": "This is a teams demo body.",
+            "url": "https://teams.microsoft.com/demo.txt",
+            "created_at": "2019-06-01T12:00:00+00:00",
+            "type": "teams",
+        }
+    ]
+    no_of_thread = 3
+    source_chunk = math.ceil(len(document) / no_of_thread)
+    target_chunk = utils.split_documents_into_equal_chunks(document, no_of_thread)
+    assert len(target_chunk) == source_chunk
