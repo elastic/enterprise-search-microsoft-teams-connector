@@ -58,8 +58,9 @@ class Configuration:
             raise ConfigurationParsingException(file_name, exception)
         self.__configurations = self.validate()
         if self.__configurations["start_time"] >= self.__configurations["end_time"]:
-            raise ConfigurationInvalidException(f"The start_time: {self.__configurations['start_time']}  \
-                    cannot be greater than or equal to the end_time: {self.__configurations['end_time']}")
+            raise ConfigurationInvalidException(
+                f"The start_time: {self.__configurations['start_time']} cannot be greater than or equal to the "
+                f"end_time: {self.__configurations['end_time']}")
         # Converting datetime object to string
         for date_config in ["start_time", "end_time"]:
             value = self.__configurations[date_config]
