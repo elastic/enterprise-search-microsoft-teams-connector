@@ -43,7 +43,9 @@ end_time:
 log_level: INFO
 #The number of retries to perform in case of server error. The connector will use exponential back-off for retry mechanism
 retry_count: 3
-#Number of threads to be used in multithreading for the connector.
-max_threads: 40
+#Number of threads to be used in multi-threading for the microsoft teams sync.
+ms_teams_sync_thread_count: 5
+#Number of threads to be used in multi-threading for the enterprise search sync.
+enterprise_search_sync_thread_count: 5
 #The path of csv file containing mapping of Microsoft Teams user ID to Workplace user ID
 microsoft_teams.user_mapping: ""
