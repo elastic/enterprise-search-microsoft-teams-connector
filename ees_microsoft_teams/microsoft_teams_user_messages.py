@@ -210,56 +210,6 @@ class MSTeamsUserMessage:
             )
             raise exception
 
-    def get_user_chats(self, ids_list):
-        """Fetches user chats by calling '/Chats' api
-        :param ids_list: List of ids
-        Returns:
-            member_dict: List of dictionaries containing chat id and their members
-            documents: Documents to be indexed in Workplace Search
-        """
-        self.logger.debug("Fetching the users chats")
-        documents = []
-        try:
-            chat_response = self.client.get(
-                f"{constant.GRAPH_BASE_URL}/chats?$expand=members",
-                constant.CHATS,
-                True,
-                False,
-                page_size=50,
-                filter_query="/",
-            )
-            chat_response_data = check_response(
-                self.logger,
-                chat_response,
-                "Could not fetch user chats",
-                "[Fail] Error while fetching user chats " "from teams",
-            )
-        except Exception as exception:
-            self.logger.exception(
-                f"[Fail] Error while fetching user chats from teams. Error: {exception}"
-            )
-            raise exception
-        if chat_response_data:
-            self.logger.info(
-                "Fetched the user chat metadata. Attempting to extract the messages from the chats, "
-                "attachments and meeting recordings.."
-            )
-            # member_dict: Dictionary of members with their id for adding permissions
-            member_dict = {}
-            for val in chat_response_data:
-                for member in val["members"]:
-                    display_name = member["displayName"]
-                    if display_name:
-                        member_dict[display_name] = [
-                            *member_dict.get(display_name, []) + [val["id"]]
-                        ]
-                # Logic to append chat for deletion
-                insert_document_into_doc_id_storage(
-                    ids_list, val["id"], constant.CHATS, "", ""
-                )
-                documents.append(val)
-        return member_dict, documents
-
     def get_user_chat_messages(
         self,
         ids_list,
