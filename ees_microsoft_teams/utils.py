@@ -163,6 +163,23 @@ def split_list_into_buckets(object_list, total_groups):
         return []
 
 
+def split_documents_into_equal_chunks(documents, chunk_size):
+    """This method splits a list or dictionary into equal chunks size
+    :param documents: List or Dictionary to be partitioned into chunks
+    :param chunk_size: Maximum size of a chunk
+    Returns:
+        list_of_chunks: List containing the chunks
+    """
+    list_of_chunks = []
+    for i in range(0, len(documents), chunk_size):
+        if type(documents) is dict:
+            partitioned_chunk = list(documents.items())[i: i + chunk_size]
+            list_of_chunks.append(dict(partitioned_chunk))
+        else:
+            list_of_chunks.append(documents[i: i + chunk_size])
+    return list_of_chunks
+
+
 def get_thread_results(thread_results):
     """ Returns the documents getting from each thread
         :param thread_results: Results getting from each thread
