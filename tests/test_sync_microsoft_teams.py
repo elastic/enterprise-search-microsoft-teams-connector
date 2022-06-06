@@ -40,12 +40,3 @@ def create_object_of_sync_microsoft_teams():
     configs, logger = settings()
     queue = ConnectorQueue(logger)
     return SyncMicrosoftTeams('full', configs, logger, queue)
-
-
-def test_add_permissions_to_queue():
-    """ Add the permissions to a queue.
-    """
-    permission_sync_obj = create_object_of_sync_microsoft_teams()
-    permission_sync_obj.add_permissions_to_queue("dummy_user", ["permission1"])
-    size = permission_sync_obj.queue.qsize()
-    assert size == 1
