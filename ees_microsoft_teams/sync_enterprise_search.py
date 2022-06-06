@@ -85,47 +85,12 @@ class SyncEnterpriseSearch:
                                  f"{count}." if total_inserted_record_dict else f"Total 0 {type} "
                                  f"indexed out of {count}")
 
-    def workplace_add_permission(self, permission_dict):
-        """This method used to index the user permissions into Workplace Search
-        for the user in parameter user_name
-        :param user_name: A string value denoting the username of the user
-        :param permission: Permission that needs to be provided to the user
-        """
-        try:
-            for user_permission in permission_dict:
-                user_permissions = split_documents_into_equal_chunks(user_permission["roles"], PERMISSION_LIMIT)
-                ws_permissions = self.workplace_search_custom_client.list_permissions()
-                for permissions in user_permissions:
-                    if ws_permissions:
-                        permission_lists = ws_permissions["results"]
-                        for list_permission in permission_lists:
-                            user_name = list_permission['user'] if 'user' in list_permission else list_permission[
-                                "external_user_properties"][0]["attribute_value"]
-                            if (user_permission["user"] == user_name):
-                                if list_permission["permissions"]:
-                                    permissions.extend(list_permission["permissions"])
-
-                    self.workplace_search_custom_client.add_permissions(
-                        user_permission["user"],
-                        list(set(permissions)),
-                    )
-                self.logger.info(
-                    f"Successfully indexed the permissions for {user_permission['user']} user into the "
-                    "Workplace Search"
-                )
-        except Exception as exception:
-            self.logger.exception(
-                f"Error while indexing the permissions for user:{user_permission['user']} to the workplace. "
-                f"Error: {exception}"
-            )
-            raise exception
-
     def perform_sync(self):
         """Pull documents from the queue and synchronize it to the Enterprise Search."""
         signal_open = True
         while signal_open:
             for _ in range(0, self.enterprise_search_thread_count):
-                documents_to_index, deleted_document = [], []
+                documents_to_index = []
                 while len(documents_to_index) < constant.BATCH_SIZE:
                     documents = self.queue.get()
                     if documents.get("type") == "signal_close":
@@ -134,10 +99,6 @@ class SyncEnterpriseSearch:
                     elif documents.get("type") == "checkpoint":
                         self.checkpoint_list.append(documents.get("data"))
                         break
-                    elif documents.get("type") == "permissions":
-                        self.permission_list_to_index.append(documents.get("data"))
-                    elif documents.get("type") == "deletion":
-                        deleted_document.extend(documents.get("data"))
                     else:
                         documents_to_index.extend(documents.get("data"))
                 if documents_to_index:
@@ -146,9 +107,5 @@ class SyncEnterpriseSearch:
                         documents_to_index, constant.BATCH_SIZE
                     ):
                         self.index_documents(chunk)
-                if deleted_document:
-                    deleted_document = list(unique_everseen(deleted_document))
-                    for chunk in split_documents_into_equal_chunks(deleted_document, constant.BATCH_SIZE):
-                        self.delete_documents(chunk)
                 if not signal_open:
                     break
