@@ -4,8 +4,10 @@
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
 """This module allows to create Content Source in Elastic Enterprise Search.
+
     It can be used to create a Content Source that will be used to upload the
     data to Elastic Enterprise Search instance.
+
     Otherwise, it's possible to use Content Source that was pre-created
     in Elastic Enterprise Search
 """
@@ -19,6 +21,7 @@ class BootstrapCommand(BaseCommand):
 
     def execute(self):
         """This function attempts to create a Content Source.
+
            It will use data from configuration file to determine
            which instance of Elastic Enterprise Search will be used
            to create a Content Source.
