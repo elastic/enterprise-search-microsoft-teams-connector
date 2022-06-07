@@ -71,9 +71,7 @@ def test_url_decode():
 )
 def test_insert_document_into_doc_id_storage_when_no_new_id_added(ids_list, source_documents, parent_id):
     """Test method for inserting the ids into doc id"""
-    target_documents = utils.insert_document_into_doc_id_storage(
-        ids_list, "1645460238462", "User Chat Messages", parent_id, ""
-    )
+    target_documents = utils.insert_document_into_doc_id_storage(ids_list, "1645460238462", "User Chat Messages", parent_id, "")
     assert source_documents == target_documents
 
 
@@ -106,9 +104,7 @@ def test_insert_document_into_doc_id_storage_when_no_new_id_added(ids_list, sour
 )
 def test_insert_document_into_doc_id_storage_when_new_id_added(ids_list, source_documents, parent_id):
     """Test method for inserting the ids into doc id when new id is added to id list"""
-    target_documents = utils.insert_document_into_doc_id_storage(
-        ids_list, "1645460238461", "User Chat Messages", parent_id, ""
-    )
+    target_documents = utils.insert_document_into_doc_id_storage(ids_list, "1645460238461", "User Chat Messages", parent_id, "")
     assert source_documents == target_documents
 
 
