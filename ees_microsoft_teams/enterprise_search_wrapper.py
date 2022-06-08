@@ -41,6 +41,37 @@ class EnterpriseSearchWrapper:
                     f"{self.host}/api/ws/v1/sources", http_auth=self.api_key
                 )
 
+    def create_content_source(self, schema, display, name, is_searchable):
+        """Create a content source
+        :param schema: schema of the content source
+        :param display: display schema for the content source
+        :param name: name of the content source
+        :param is_searchable: boolean to indicate source is searchable or not
+        """
+        try:
+            if self.version >= ENTERPRISE_V8:
+                response = self.workplace_search_client.create_content_source(
+                    name=name,
+                    schema=schema,
+                    display=display,
+                    is_searchable=is_searchable,
+                )
+            else:
+                body = {
+                    "name": name,
+                    "schema": schema,
+                    "display": display,
+                    "is_searchable": is_searchable,
+                }
+                response = self.workplace_search_client.create_content_source(body=body)
+            content_source_id = response.get("id")
+            self.logger.info(
+                f"Created ContentSource with ID {content_source_id}. \
+                    You may now begin indexing with content-source-id= {content_source_id}"
+            )
+        except Exception as exception:
+            self.logger.error(f"Could not create a content source, Error {exception}")
+
     def index_documents(self, documents, timeout):
         """Indexes one or more new documents into a custom content source, or updates one
         or more existing documents
