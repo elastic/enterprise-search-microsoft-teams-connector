@@ -18,11 +18,11 @@ try:
 except ImportError:
     from cached_property import cached_property
 
+from .enterprise_search_wrapper import EnterpriseSearchWrapper
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from . import constant
 from .configuration import Configuration
-from .enterprise_search_wrapper import EnterpriseSearchWrapper
 from .local_storage import LocalStorage
 from .microsoft_teams_channels import MSTeamsChannels
 from .msal_access_token import MSALAccessToken
@@ -51,10 +51,12 @@ class BaseCommand:
         """
         log_level = self.config.get_value('log_level')
         logger = logging.getLogger(__name__)
-        logger.propagate = False
+        logger.propagate = True
         logger.setLevel(log_level)
 
         handler = logging.StreamHandler()
+        formatter = logging.Formatter("%(asctime)s %(levelname)s Thread[%(thread)s]: %(message)s")
+        handler.setFormatter(formatter)
         # Uncomment the following lines to output logs in ECS-compatible format
         # formatter = ecs_logging.StdlibFormatter()
         # handler.setFormatter(formatter)
