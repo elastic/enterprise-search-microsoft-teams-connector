@@ -18,11 +18,11 @@ try:
 except ImportError:
     from cached_property import cached_property
 
+from .enterprise_search_wrapper import EnterpriseSearchWrapper
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from . import constant
 from .configuration import Configuration
-from .enterprise_search_wrapper import EnterpriseSearchWrapper
 from .local_storage import LocalStorage
 from .microsoft_teams_channels import MSTeamsChannels
 from .msal_access_token import MSALAccessToken
