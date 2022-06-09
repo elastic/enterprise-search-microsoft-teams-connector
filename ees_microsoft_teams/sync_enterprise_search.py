@@ -36,10 +36,10 @@ class SyncEnterpriseSearch:
         """
         if not documents:
             return {}
-        df = pd.DataFrame(documents)
-        df_size = df.groupby("type").size()
-        df_dict = df_size.to_dict()
-        return df_dict
+        data_frame = pd.DataFrame(documents)
+        data_frame_size = data_frame.groupby("type").size()
+        data_frame_dict = data_frame_size.to_dict()
+        return data_frame_dict
 
     def filter_removed_item_by_id(self, item, id):
         """This method is used filter removed document by id
