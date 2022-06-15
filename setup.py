@@ -29,7 +29,8 @@ install_requires = [
     "flake8",
     "mock",
     "requests-mock",
-    "dateparser"
+    "dateparser",
+    "more_itertools"
 ]
 
 description = ""

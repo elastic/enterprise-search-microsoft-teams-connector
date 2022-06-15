@@ -36,7 +36,7 @@ def create_channel_obj():
     """This function create channel object for test.
     """
     configs, logger = settings()
-    return MSTeamsChannels('token', {}, logger, configs)
+    return MSTeamsChannels('token', logger, configs)
 
 
 @pytest.mark.parametrize(

@@ -39,12 +39,9 @@ class MSTeamsClient:
         self.logger = logger
         self.config = config
         self.retry_count = int(config.get_value("retry_count"))
-        self.request_header = {
-            "Authorization": f"Bearer {self.access_token}"
-        }
 
     @retry(exception_list=(RequestException, ResponseException))
-    def get(self, url, object_type, is_pagination, is_filter, page_size=0, filter_query="",
+    def get(self, url, object_type, is_pagination, is_filter, page_size=50, filter_query="",
             datetime_filter_column_name="lastModifiedDateTime", is_pandas_series=False):
         """ Invokes a GET call to the Microsoft Graph API
             :param url: Base url to call the Graph API
@@ -71,11 +68,11 @@ class MSTeamsClient:
             try:
                 response = requests.get(
                     request_url,
-                    headers=self.request_header
+                    headers={"Authorization": f"Bearer {self.access_token}"}
                 )
                 if response and response.status_code == requests.codes.ok:
                     if is_pagination and not is_filter:
-                        response_data = self.get_response_data(response)
+                        response_data = self.get_response_json(response)
                         if object_type in [
                                 constant.MEMBER, constant.TEAMS, constant.CHATS, constant.DRIVE, constant.CALENDAR]:
                             response_list["value"].extend(response_data.get("value"))
@@ -101,7 +98,7 @@ class MSTeamsClient:
                             paginate_query = None
                             break
                     elif is_pagination and is_filter:
-                        response_data = self.get_response_data(response)
+                        response_data = self.get_response_json(response)
                         response_list["value"].extend(response_data.get("value"))
                         url = response_data.get("@odata.nextLink")
                         if not url:
@@ -109,7 +106,7 @@ class MSTeamsClient:
                             break
                     elif not (object_type in [
                             constant.CHANNELS, constant.ROOT, constant.ATTACHMENTS] or is_pagination or is_filter):
-                        response_data = self.get_response_data(response)
+                        response_data = self.get_response_json(response)
                         data_frame = pandas.DataFrame(response_data.get("value"))
                         if not data_frame.empty:
                             rows = data_frame
@@ -151,7 +148,7 @@ class MSTeamsClient:
                 raise exception
         return response_list
 
-    def get_response_data(self, response):
+    def get_response_json(self, response):
         """ Get the data from the HTTP response
             :param response: Response from Microsoft Graph API request
         """
@@ -175,9 +172,6 @@ class MSTeamsClient:
             self.access_token = token.get_token(is_acquire_for_client=True)
         else:
             self.access_token = token.get_token()
-        self.request_header = {
-            "Authorization": f"Bearer {self.access_token}"
-        }
 
     def handle_4xx_errors(self, response, object_type, request_url):
         """ Returns the response when 4xx error occurs
@@ -186,7 +180,7 @@ class MSTeamsClient:
             channel_docs, calendar, user_chats, permissions and deletion
         :param request_url: Request URL for logging the message
         """
-        response_data = self.get_response_data(response)
+        response_data = self.get_response_json(response)
         # Error 403 occurs when the current user is trying fetch the Teams and it's object which was
         # created by other user
         if response.status_code == 403 or (

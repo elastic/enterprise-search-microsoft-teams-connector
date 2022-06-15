@@ -30,7 +30,9 @@ class ConnectorQueue(Queue):
 
         checkpoint = {
             "type": "checkpoint",
-            "data": (checkpoint_time, indexing_type, key),
+            "checkpoint_time": checkpoint_time,
+            "indexing_type": indexing_type,
+            "object_type": key
         }
         self.put(checkpoint)
 

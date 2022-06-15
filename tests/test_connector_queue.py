@@ -27,7 +27,8 @@ def test_end_signal():
 
 def test_put_checkpoint():
     """Tests putting the checkpoint object in the queue which will be used by the consumer to update the checkpoint file"""
-    expected_message = {'type': 'checkpoint', 'data': ('2022-05-24T14:11:14Z', 'full', 'key')}
+    expected_message = {'type': 'checkpoint', 'checkpoint_time': '2022-05-24T14:11:14Z', 'indexing_type': 'full',
+                        'object_type': 'key'}
     queue = ConnectorQueue(logger)
 
     queue.put("Example data")

@@ -52,18 +52,21 @@ class LocalStorage:
         if not os.path.exists(doc_ids_directory):
             os.makedirs(doc_ids_directory)
 
-    def get_storage_with_collection(self, ids_path):
-        """Returns a dictionary containing the locally stored IDs of files fetched from Microsoft Teams
+    def get_documents_from_doc_id_storage(self, ids_path):
+        """Returns a dictionary from doc_id file containing the document ids fetched from Microsoft Teams
         :param ids_path: Path to the respective doc_ids.json
+        Returns:
+            document_ids_dictionary: Dictionary containing the Microsoft Teams document ids
         """
-        storage_with_collection = {"global_keys": [], "delete_keys": []}
+        document_ids_dictionary = {"global_keys": [], "delete_keys": []}
         ids_collection = self.load_storage(ids_path)
-        storage_with_collection["delete_keys"] = copy.deepcopy(
+        document_ids_dictionary["delete_keys"] = copy.deepcopy(
             ids_collection.get("global_keys")
         )
         if not ids_collection["global_keys"]:
             ids_collection["global_keys"] = []
-        storage_with_collection["global_keys"] = copy.deepcopy(
+
+        document_ids_dictionary["global_keys"] = copy.deepcopy(
             ids_collection["global_keys"]
         )
-        return storage_with_collection
+        return document_ids_dictionary

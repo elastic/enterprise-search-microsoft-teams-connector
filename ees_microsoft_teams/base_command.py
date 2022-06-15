@@ -26,7 +26,7 @@ from .configuration import Configuration
 from .local_storage import LocalStorage
 from .microsoft_teams_channels import MSTeamsChannels
 from .msal_access_token import MSALAccessToken
-from .utils import get_schema_fields, split_documents_into_equal_chunks
+from .utils import split_documents_into_equal_chunks
 
 
 class BaseCommand:
@@ -121,7 +121,7 @@ class BaseCommand:
     def microsoft_team_channel_object(self, access_token):
         """Get the object for fetching the teams and its children"""
         return MSTeamsChannels(
-            access_token, get_schema_fields, self.logger, self.config
+            access_token, self.logger, self.config
         )
 
     def create_jobs_for_teams(
@@ -151,7 +151,7 @@ class BaseCommand:
         if not any(teams_object in self.config.get_value("objects") for teams_object in allowed_objects):
             return
 
-        storage_with_collection = self.local_storage.get_storage_with_collection(
+        storage_with_collection = self.local_storage.get_documents_from_doc_id_storage(
             constant.CHANNEL_CHAT_DELETION_PATH
         )
         ids_list = storage_with_collection.get("global_keys")

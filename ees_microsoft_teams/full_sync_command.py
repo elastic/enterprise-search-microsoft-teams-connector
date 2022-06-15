@@ -20,7 +20,10 @@ INDEXING_TYPE = "full"
 
 
 class FullSyncCommand(BaseCommand):
-    """This class start execution of full sync feature."""
+    """This class starts execution of full sync feature.
+        Full sync fetches the documents from the start time configured in config file till the current time
+        from the Microsoft Teams and indexes them into the Workplace Search.
+    """
 
     def start_producer(self, queue):
         """This method starts async calls for the producer which is responsible for fetching documents from
@@ -35,11 +38,6 @@ class FullSyncCommand(BaseCommand):
         )
         start_time = self.config.get_value("start_time")
         end_time = constant.CURRENT_TIME
-
-        if self.config.get_value("enable_document_permission"):
-            self.remove_object_permissions(start_time, end_time)
-        else:
-            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
         self.create_jobs_for_teams(
             INDEXING_TYPE,
@@ -68,14 +66,10 @@ class FullSyncCommand(BaseCommand):
         self.create_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
 
-        # The reason for adding all the permissions in every run rather than appending the latest changes is
-        # because in the Enterprise Search version>=8, there is no endpoint to append permissions
-        if sync_es.permission_list_to_index:
-            sync_es.workplace_add_permission(sync_es.permission_list_to_index)
-
         checkpoint = Checkpoint(self.logger, self.config)
         for checkpoint_data in sync_es.checkpoint_list:
-            checkpoint.set_checkpoint(*checkpoint_data[:3])
+            checkpoint.set_checkpoint(checkpoint_data["checkpoint_time"], checkpoint_data["indexing_type"],
+                                      checkpoint_data["object_type"])
 
     def execute(self):
         """This function execute the start function."""

@@ -16,6 +16,7 @@ from tika import parser
 
 from . import constant
 from .adapter import DEFAULT_SCHEMA
+from more_itertools import chunked
 
 TIMEOUT = 400
 
@@ -55,8 +56,8 @@ def html_to_text(logger, content):
         logger.exception(f"Error: {exception}")
 
 
-def check_response(logger, response, error_message, exception_message):
-    """ This function is used to check and read the data received from API response
+def get_data_from_http_response(logger, response, error_message, exception_message):
+    """ This function is used to get the data received from API response
         :param logger: Logger object
         :param response: Response from Microsoft Teams
         :param error_message: Error message if not getting the response
@@ -75,7 +76,7 @@ def check_response(logger, response, error_message, exception_message):
         raise exception
 
 
-def insert_document_into_doc_id_storage(ids_list, id, type, parent_id, super_parent_id):
+def insert_document_into_doc_id_storage(ids_list, id, type, parent_id="", super_parent_id=""):
     """ Prepares the document dictionary for deletion and insert it into the global_keys of respective doc_ids.json.
         :param ids_list: Pass "global_keys" of microsoft_teams_user_chat_doc_ids.json,
             microsoft_teams_channel_chat_doc_ids.json and microsoft_teams_calendar_doc_ids.json
@@ -88,9 +89,7 @@ def insert_document_into_doc_id_storage(ids_list, id, type, parent_id, super_par
     new_item = {"id": str(id), "type": type, "parent_id": str(parent_id), "super_parent_id": str(super_parent_id)}
     if new_item not in ids_list:
         ids_list.append(new_item)
-        return ids_list
-    else:
-        return ids_list
+    return ids_list
 
 
 def url_decode(text):
@@ -170,13 +169,7 @@ def split_documents_into_equal_chunks(documents, chunk_size):
     Returns:
         list_of_chunks: List containing the chunks
     """
-    list_of_chunks = []
-    for i in range(0, len(documents), chunk_size):
-        if type(documents) is dict:
-            partitioned_chunk = list(documents.items())[i: i + chunk_size]
-            list_of_chunks.append(dict(partitioned_chunk))
-        else:
-            list_of_chunks.append(documents[i: i + chunk_size])
+    list_of_chunks = list(chunked(documents, chunk_size))
     return list_of_chunks
 
 

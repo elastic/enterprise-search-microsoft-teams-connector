@@ -5,13 +5,24 @@
 #
 
 import pandas as pd
-from elastic_enterprise_search import BadGatewayError, InternalServerError
 from iteration_utilities import unique_everseen
 
 from . import constant
 from .utils import split_documents_into_equal_chunks, split_list_into_buckets
 
 PERMISSION_LIMIT = 1024
+
+
+class IndexingError(Exception):
+    """Exception raised when indexing gets failed.
+
+    Attributes:
+        errors - errors found while indexing the documents to Workplace Search
+    """
+
+    def __init__(self, errors):
+        super().__init__(f"Error while indexing the documents to Workplace Search. Errors: {errors}.")
+        self.errors = errors
 
 
 class SyncEnterpriseSearch:
@@ -48,6 +59,13 @@ class SyncEnterpriseSearch:
         """
         return item["id"] == id
 
+    def fetch_documents_by_id(self, response, documents):
+        """Filters the documents which are getting failed while indexing
+        :param response: Response getting from the Workplace Search
+        :param documents: Documents to be indexed into the Workplace Search
+        """
+        return list(filter(lambda seq: self.filter_removed_item_by_id(seq, response["id"]), documents,))
+
     def index_documents(self, documents):
         """This method indexes the documents to the workplace.
         :param documents: Documents to be indexed into the Workplace Search
@@ -59,22 +77,11 @@ class SyncEnterpriseSearch:
                     response = self.workplace_search_custom_client.index_documents(
                         chunk, constant.CONNECTION_TIMEOUT
                     )
-                except InternalServerError:
-                    raise InternalServerError("Error while indexing the documents due to Internal Server error.")
-                except BadGatewayError:
-                    raise BadGatewayError("Error while indexing the documents due to Bad Gateway error.")
-                except Exception as exception:
-                    raise Exception(f"Error while indexing the documents. Error: {exception}")
+                except IndexingError as exception:
+                    raise IndexingError(exception)
                 for each in response["results"]:
                     if each["errors"]:
-                        item = list(
-                            filter(
-                                lambda seq: self.filter_removed_item_by_id(
-                                    seq, each["id"]
-                                ),
-                                documents,
-                            )
-                        )
+                        item = self.fetch_documents_by_id(each, documents)
                         documents.remove(item[0])
                         self.logger.error(
                             f"Error while indexing {each['id']}. Error: {each['errors']}"
@@ -97,7 +104,7 @@ class SyncEnterpriseSearch:
                         signal_open = False
                         break
                     elif documents.get("type") == "checkpoint":
-                        self.checkpoint_list.append(documents.get("data"))
+                        self.checkpoint_list.append(documents)
                         break
                     else:
                         documents_to_index.extend(documents.get("data"))

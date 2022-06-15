@@ -7,23 +7,23 @@
 """
 from . import constant
 from .microsoft_teams_client import MSTeamsClient
-from .utils import (check_response, insert_document_into_doc_id_storage)
+from .utils import (get_data_from_http_response, insert_document_into_doc_id_storage, get_schema_fields)
 
 MEETING_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 CHANNEL_MEETINGS = "Channel Meetings"
+TEAMS_PAGE_SIZE = 999
 
 
 class MSTeamsChannels:
     """This class fetches all the teams and channels data from Microsoft Teams.
     """
 
-    def __init__(self, access_token, get_schema_fields, logger, config):
+    def __init__(self, access_token, logger, config):
         self.access_token = access_token
         self.client = MSTeamsClient(logger, self.access_token, config)
-        self.get_schema_fields = get_schema_fields
         self.logger = logger
-        self.objects = config.get_value('objects')
-        self.permission = config.get_value("enable_document_permission")
+        self.objects_to_be_indexed = config.get_value('objects')
+        self.is_permission_sync_enabled = config.get_value("enable_document_permission")
 
     def get_all_teams(self, ids_list):
         """ Fetches all the teams from Microsoft Teams
@@ -33,20 +33,21 @@ class MSTeamsChannels:
         """
         documents = []
         teams_url = f"{constant.GRAPH_BASE_URL}/groups"
-        self.logger.info("Fetching the teams from Microsoft Teams...")
-        team_response = self.client.get(teams_url, constant.TEAMS, True, False, page_size=999, filter_query="/")
-        team_response_data = check_response(
+        self.logger.info("Fetching teams from Microsoft Teams...")
+        team_response = self.client.get(teams_url, constant.TEAMS, is_pagination=True, is_filter=False,
+                                        page_size=TEAMS_PAGE_SIZE, filter_query="/")
+        team_response_data = get_data_from_http_response(
             self.logger, team_response, "Could not fetch the teams from Microsoft Teams",
             "Error while fetching the teams from Microsoft Teams")
         if team_response_data:
-            team_schema = self.get_schema_fields("teams", self.objects)
+            team_schema = get_schema_fields("teams", self.objects_to_be_indexed)
             for team in team_response_data:
                 # Logic to append teams for deletion
                 insert_document_into_doc_id_storage(ids_list, team["id"], constant.TEAMS, "", "")
                 team_data = {"type": constant.TEAMS}
-                for ws_field, ms_fields in team_schema.items():
-                    team_data[ws_field] = team[ms_fields]
-                if self.permission:
+                for workplace_search_field, microsoft_teams_fields in team_schema.items():
+                    team_data[workplace_search_field] = team[microsoft_teams_fields]
+                if self.is_permission_sync_enabled:
                     team_data["_allow_permissions"] = [team["id"]]
                 documents.append(team_data)
         return documents
@@ -59,8 +60,9 @@ class MSTeamsChannels:
         member_list = {}
         teams_url = f"{constant.GRAPH_BASE_URL}/groups"
         try:
-            teams_response = self.client.get(teams_url, constant.TEAMS, True, False, page_size=999, filter_query="/")
-            team_response_data = check_response(
+            teams_response = self.client.get(teams_url, constant.TEAMS, is_pagination=True, is_filter=False,
+                                             page_size=TEAMS_PAGE_SIZE, filter_query="/")
+            team_response_data = get_data_from_http_response(
                 self.logger, teams_response, "Could not fetch the teams from Microsoft Teams",
                 "Error while fetching the teams from Microsoft Teams")
             if team_response_data:
@@ -69,8 +71,9 @@ class MSTeamsChannels:
                     team_id = team['id']
                     team_member_url = f"{constant.GRAPH_BASE_URL}/teams/{team_id}/members"
                     team_member_response = self.client.get(
-                        team_member_url, constant.MEMBER, True, False, page_size=999, filter_query="/")
-                    member_response_data = check_response(
+                        team_member_url, constant.MEMBER, is_pagination=True, is_filter=False,
+                        page_size=TEAMS_PAGE_SIZE, filter_query="/")
+                    member_response_data = get_data_from_http_response(
                         self.logger, team_member_response, f"No team member found for team: {team['displayName']}",
                         f"Error while fetching the team members for team: {team['displayName']}")
                     if member_response_data:
@@ -96,14 +99,14 @@ class MSTeamsChannels:
             team_id = team["id"]
             team_name = team["title"]
             channel_url = f"{constant.GRAPH_BASE_URL}/teams/{team_id}/channels"
-            self.logger.info(f"Fetching the channels for team: {team_name}")
-            channel_response = self.client.get(channel_url, constant.CHANNELS, False, False)
-            channel_response_data = check_response(
+            self.logger.info(f"Fetching channels for team: {team_name}")
+            channel_response = self.client.get(channel_url, constant.CHANNELS, is_pagination=False, is_filter=False)
+            channel_response_data = get_data_from_http_response(
                 self.logger, channel_response.json(),
                 f"Could not fetch the channels for team: {team_name}",
                 f"Error while fetching the channels for team: {team_name}")
             if channel_response_data:
-                channel_schema = self.get_schema_fields("channels", self.objects)
+                channel_schema = get_schema_fields("channels", self.objects_to_be_indexed)
                 channels_by_team = {team_id: []}
                 for channel in channel_response_data:
                     # Logic to append channels for deletion
@@ -111,7 +114,7 @@ class MSTeamsChannels:
                     channel_data = {"type": constant.CHANNELS}
                     for ws_field, ms_field in channel_schema.items():
                         channel_data[ws_field] = channel[ms_field]
-                    if self.permission:
+                    if self.is_permission_sync_enabled:
                         channel_data["_allow_permissions"] = [team_id]
                     documents.append(channel_data)
                     channels_by_team[team_id].append(channel_data)

@@ -28,6 +28,7 @@ class SyncMicrosoftTeams:
         """Fetches teams from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
+        :param is_deletion: Flag to check if the function is used for deletion
         """
         teams = teams_obj.get_all_teams(ids_list)
         if not is_deletion and "teams" in self.objects:
@@ -39,6 +40,7 @@ class SyncMicrosoftTeams:
         :param teams: List of teams to fetch the channels
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
+        :param is_deletion: Flag to check if the function is used for deletion
         """
         channels, channel_documents = teams_obj.get_team_channels(teams, ids_list)
         if is_deletion:
