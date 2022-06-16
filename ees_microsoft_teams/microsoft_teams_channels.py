@@ -79,7 +79,10 @@ class MSTeamsChannels:
                     if member_response_data:
                         for member in member_response_data:
                             display_name = member["displayName"]
-                            member_list[display_name] = [*member_list.get(display_name, []) + [team_id]]
+                            if member_list.get(display_name):
+                                member_list[display_name].append(team_id)
+                            else:
+                                member_list[display_name] = [team_id]
         except Exception as exception:
             self.logger.exception(f"Error while fetching the team members from Microsoft Teams. Error: {exception}")
             raise exception
