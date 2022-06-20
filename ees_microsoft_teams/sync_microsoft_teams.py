@@ -18,7 +18,7 @@ class SyncMicrosoftTeams:
     def __init__(self, indexing_type, config, logger, queue):
         self.logger = logger
         self.config = config
-        self.objects = config.get_value("objects")
+        self.objects = config.get_value("object_type_to_index")
         self.permission = config.get_value("enable_document_permission")
         self.indexing_type = indexing_type
         self.local_storage = LocalStorage(config)

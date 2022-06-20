@@ -82,7 +82,9 @@ class SyncEnterpriseSearch:
                 for each in response["results"]:
                     if each["errors"]:
                         item = self.fetch_documents_by_id(each, documents)
-                        documents.remove(item[0])
+                        # Removing the failed document from the successfully indexed document count
+                        failed_document = item[0]
+                        documents.remove(failed_document)
                         self.logger.error(
                             f"Error while indexing {each['id']}. Error: {each['errors']}"
                         )

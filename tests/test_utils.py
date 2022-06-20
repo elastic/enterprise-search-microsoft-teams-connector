@@ -163,7 +163,7 @@ def test_html_to_text():
 
 
 @pytest.mark.parametrize(
-    "document_name, objects, source_schema_fields",
+    "document_name, object_type_to_index, source_schema_fields",
     [
         (
             "user_chats",
@@ -172,9 +172,9 @@ def test_html_to_text():
         )
     ],
 )
-def test_get_schema_fields(document_name, objects, source_schema_fields):
+def test_get_schema_fields(document_name, object_type_to_index, source_schema_fields):
     """Test the fetching of schema fields"""
-    target_schema_fields = utils.get_schema_fields(document_name, objects)
+    target_schema_fields = utils.get_schema_fields(document_name, object_type_to_index)
     assert source_schema_fields == target_schema_fields
 
 

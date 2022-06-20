@@ -36,10 +36,7 @@ MIMETYPES = [
     "audio/3gpp", "video/3gpp", "video/3gpp2", "audio/3gpp2"]
 CURRENT_TIME = (datetime.datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-USER_CHAT_DELETION_PATH = os.path.join(os.path.dirname(__file__), "doc_ids", "microsoft_teams_user_chat_doc_ids.json")
-CALENDAR_CHAT_DELETION_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "doc_ids", "microsoft_teams_calendar_doc_ids.json")
-CHANNEL_CHAT_DELETION_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "doc_ids", "microsoft_teams_channel_chat_doc_ids.json")
+LOCAL_STORAGE_DIRECTORY = os.path.join(os.path.dirname(__file__), "doc_ids")
+USER_CHAT_DELETION_PATH = os.path.join(LOCAL_STORAGE_DIRECTORY, "microsoft_teams_user_chat_doc_ids.json")
+CALENDAR_CHAT_DELETION_PATH = os.path.join(LOCAL_STORAGE_DIRECTORY, "microsoft_teams_calendar_doc_ids.json")
+CHANNEL_CHAT_DELETION_PATH = os.path.join(LOCAL_STORAGE_DIRECTORY, "microsoft_teams_channel_chat_doc_ids.json")

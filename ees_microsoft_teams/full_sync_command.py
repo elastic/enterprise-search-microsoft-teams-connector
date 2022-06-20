@@ -63,7 +63,7 @@ class FullSyncCommand(BaseCommand):
             self.config, self.logger, self.workplace_search_custom_client, queue
         )
 
-        self.create_jobs(thread_count, sync_es.perform_sync, (), [])
+        self.create_and_execute_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
 
         checkpoint = Checkpoint(self.logger, self.config)

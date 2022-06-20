@@ -21,7 +21,6 @@ except ImportError:
 from .enterprise_search_wrapper import EnterpriseSearchWrapper
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from . import constant
 from .configuration import Configuration
 from .local_storage import LocalStorage
 from .microsoft_teams_channels import MSTeamsChannels
@@ -76,7 +75,7 @@ class BaseCommand:
         file_name = self.args.config_file
         return Configuration(file_name)
 
-    def create_jobs(self, thread_count, func, args, iterable_list):
+    def create_and_execute_jobs(self, thread_count, func, args, iterable_list):
         """Creates a thread pool of given number of thread count
         :param thread_count: Total number of threads to be spawned
         :param func: The target function on which the async calls would be made
@@ -148,11 +147,11 @@ class BaseCommand:
             "channel_tabs",
             "channel_documents",
         ]
-        if not any(teams_object in self.config.get_value("objects") for teams_object in allowed_objects):
+        if not any(teams_object in self.config.get_value("object_type_to_index") for teams_object in allowed_objects):
             return
 
         storage_with_collection = self.local_storage.get_documents_from_doc_id_storage(
-            constant.CHANNEL_CHAT_DELETION_PATH
+            "teams"
         )
         ids_list = storage_with_collection.get("global_keys")
 
@@ -171,7 +170,7 @@ class BaseCommand:
                 teams, thread_count
             )
 
-            self.create_jobs(
+            self.create_and_execute_jobs(
                 thread_count,
                 sync_microsoft_teams.fetch_channels,
                 (
@@ -184,7 +183,7 @@ class BaseCommand:
 
             storage_with_collection["global_keys"] = list(ids_list)
             self.local_storage.update_storage(
-                storage_with_collection, constant.CHANNEL_CHAT_DELETION_PATH
+                storage_with_collection, "teams"
             )
 
             self.logger.debug("Saving the checkpoint for Teams and its objects")

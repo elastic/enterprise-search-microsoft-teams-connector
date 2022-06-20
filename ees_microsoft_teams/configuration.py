@@ -62,7 +62,7 @@ class Configuration:
                     cannot be greater than or equal to the end_time: {self.__configurations['end_time']}")
         allowed_objects = ["teams", "channels", "channel_messages", "channel_tabs", "channel_documents",
                            "user_chats", "calendar"]
-        if set(self.__configurations["objects"].keys()) != set(allowed_objects):
+        if set(self.__configurations["object_type_to_index"].keys()) != set(allowed_objects):
             raise ConfigurationInvalidException("Invalid object has configured. Allowed objects are: teams, \
                 channels, channel_messages, channel_tabs, channel_documents, user_chats, calendar")
         # Converting datetime object to string

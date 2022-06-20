@@ -22,7 +22,7 @@ class MSTeamsChannels:
         self.access_token = access_token
         self.client = MSTeamsClient(logger, self.access_token, config)
         self.logger = logger
-        self.objects_to_be_indexed = config.get_value('objects')
+        self.object_type_to_index = config.get_value('object_type_to_index')
         self.is_permission_sync_enabled = config.get_value("enable_document_permission")
 
     def get_all_teams(self, ids_list):
@@ -40,7 +40,7 @@ class MSTeamsChannels:
             self.logger, team_response, "Could not fetch the teams from Microsoft Teams",
             "Error while fetching the teams from Microsoft Teams")
         if team_response_data:
-            team_schema = get_schema_fields("teams", self.objects_to_be_indexed)
+            team_schema = get_schema_fields("teams", self.object_type_to_index)
             for team in team_response_data:
                 # Logic to append teams for deletion
                 insert_document_into_doc_id_storage(ids_list, team["id"], constant.TEAMS, "", "")
@@ -109,7 +109,7 @@ class MSTeamsChannels:
                 f"Could not fetch the channels for team: {team_name}",
                 f"Error while fetching the channels for team: {team_name}")
             if channel_response_data:
-                channel_schema = get_schema_fields("channels", self.objects_to_be_indexed)
+                channel_schema = get_schema_fields("channels", self.object_type_to_index)
                 channels_by_team = {team_id: []}
                 for channel in channel_response_data:
                     # Logic to append channels for deletion
