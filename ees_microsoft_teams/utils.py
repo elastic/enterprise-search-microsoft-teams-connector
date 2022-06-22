@@ -76,22 +76,6 @@ def get_data_from_http_response(logger, response, error_message, exception_messa
         raise exception
 
 
-def insert_document_into_doc_id_storage(ids_list, id, type, parent_id="", super_parent_id=""):
-    """ Prepares the document dictionary for deletion and insert it into the global_keys of respective doc_ids.json.
-        :param ids_list: Pass "global_keys" of microsoft_teams_user_chat_doc_ids.json,
-            microsoft_teams_channel_chat_doc_ids.json and microsoft_teams_calendar_doc_ids.json
-        :param id: Pass id of User Chat, User Chat Attachment, Calendar, Calendar Attachment, Teams, Channel Chat,
-            Channel Chat Attachment, Channel Chat Tabs and User Chat Tabs
-        :param type: Pass type of each document for deletion.
-        :param parent_id: Pass parent id of each document for deletion.
-        :param super_parent_id: Pass super parent id of each document for deletion
-    """
-    new_item = {"id": str(id), "type": type, "parent_id": str(parent_id), "super_parent_id": str(super_parent_id)}
-    if new_item not in ids_list:
-        ids_list.append(new_item)
-    return ids_list
-
-
 def url_decode(text):
     """ This function is used to unquote an encoded url
         :param text: Text to be decoded

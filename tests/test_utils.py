@@ -48,67 +48,6 @@ def test_url_decode():
     assert source_decoded_url == target_decoded_url
 
 
-@pytest.mark.parametrize(
-    "ids_list, source_documents, parent_id",
-    [
-        (
-            [{
-                "id": "1645460238462",
-                "type": "User Chat Messages",
-                "parent_id": "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-                "super_parent_id": ""
-            }],
-            [{
-                "id": "1645460238462",
-                "type": "User Chat Messages",
-                "parent_id": "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-                "super_parent_id": ""
-            }],
-            "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-        )
-    ],
-)
-def test_insert_document_into_doc_id_storage_when_no_new_id_added(ids_list, source_documents, parent_id):
-    """Test method for inserting the ids into doc id"""
-    target_documents = utils.insert_document_into_doc_id_storage(
-        ids_list, "1645460238462", "User Chat Messages", parent_id, "")
-    assert source_documents == target_documents
-
-
-@pytest.mark.parametrize(
-    "ids_list, source_documents, parent_id",
-    [
-        (
-            [{
-                "id": "1645460238462",
-                "type": "User Chat Messages",
-                "parent_id": "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-                "super_parent_id": ""
-            }],
-            [{
-                'id': '1645460238462',
-                'type': 'User Chat Messages',
-                'parent_id': '19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2',
-                'super_parent_id': ''
-            },
-                {
-                'id': '1645460238461',
-                'type': 'User Chat Messages',
-                'parent_id': '19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2',
-                'super_parent_id': ''
-            }
-            ],
-            "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-        )
-    ],
-)
-def test_insert_document_into_doc_id_storage_when_new_id_added(ids_list, source_documents, parent_id):
-    """Test method for inserting the ids into doc id when new id is added to id list"""
-    target_documents = utils.insert_document_into_doc_id_storage(
-        ids_list, "1645460238461", "User Chat Messages", parent_id, "")
-    assert source_documents == target_documents
-
-
 def test_split_list_into_buckets():
     """Test that divide large number of documents amongst the total buckets."""
     documents = [1, 2, 3, 4, 5, 6, 7, 8, 10]

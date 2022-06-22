@@ -15,6 +15,7 @@ import pytest
 from ees_microsoft_teams.configuration import Configuration
 from ees_microsoft_teams.microsoft_teams_channels import MSTeamsChannels
 from requests.models import Response
+from ees_microsoft_teams.local_storage import LocalStorage
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),
@@ -36,7 +37,8 @@ def create_channel_obj():
     """This function create channel object for test.
     """
     configs, logger = settings()
-    return MSTeamsChannels('token', logger, configs)
+    local_storage = LocalStorage(logger)
+    return MSTeamsChannels('token', logger, configs, local_storage)
 
 
 @pytest.mark.parametrize(

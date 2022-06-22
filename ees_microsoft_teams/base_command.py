@@ -120,7 +120,7 @@ class BaseCommand:
     def microsoft_team_channel_object(self, access_token):
         """Get the object for fetching the teams and its children"""
         return MSTeamsChannels(
-            access_token, self.logger, self.config
+            access_token, self.logger, self.config, self.local_storage
         )
 
     def create_jobs_for_teams(

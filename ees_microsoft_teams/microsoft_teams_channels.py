@@ -7,7 +7,7 @@
 """
 from . import constant
 from .microsoft_teams_client import MSTeamsClient
-from .utils import (get_data_from_http_response, insert_document_into_doc_id_storage, get_schema_fields)
+from .utils import (get_data_from_http_response, get_schema_fields)
 
 MEETING_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 CHANNEL_MEETINGS = "Channel Meetings"
@@ -18,12 +18,13 @@ class MSTeamsChannels:
     """This class fetches all the teams and channels data from Microsoft Teams.
     """
 
-    def __init__(self, access_token, logger, config):
+    def __init__(self, access_token, logger, config, local_storage):
         self.access_token = access_token
         self.client = MSTeamsClient(logger, self.access_token, config)
         self.logger = logger
         self.object_type_to_index = config.get_value('object_type_to_index')
         self.is_permission_sync_enabled = config.get_value("enable_document_permission")
+        self.local_storage = local_storage
 
     def get_all_teams(self, ids_list):
         """ Fetches all the teams from Microsoft Teams
@@ -43,7 +44,7 @@ class MSTeamsChannels:
             team_schema = get_schema_fields("teams", self.object_type_to_index)
             for team in team_response_data:
                 # Logic to append teams for deletion
-                insert_document_into_doc_id_storage(ids_list, team["id"], constant.TEAMS, "", "")
+                self.local_storage.insert_document_into_doc_id_storage(ids_list, team["id"], constant.TEAMS, "", "")
                 team_data = {"type": constant.TEAMS}
                 for workplace_search_field, microsoft_teams_fields in team_schema.items():
                     team_data[workplace_search_field] = team[microsoft_teams_fields]
@@ -113,7 +114,8 @@ class MSTeamsChannels:
                 channels_by_team = {team_id: []}
                 for channel in channel_response_data:
                     # Logic to append channels for deletion
-                    insert_document_into_doc_id_storage(ids_list, channel["id"], constant.CHANNELS, team_id, "")
+                    self.local_storage.insert_document_into_doc_id_storage(ids_list, channel["id"], constant.CHANNELS,
+                                                                           team_id, "")
                     channel_data = {"type": constant.CHANNELS}
                     for ws_field, ms_field in channel_schema.items():
                         channel_data[ws_field] = channel[ms_field]
