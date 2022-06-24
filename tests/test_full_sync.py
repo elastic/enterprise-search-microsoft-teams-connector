@@ -22,6 +22,7 @@ def settings():
 
 def test_start_producer():
     """Test that start producer process for full sync."""
+    # Setup
     args = argparse.Namespace()
     args.name = "dummy"
     args.config_file = CONFIG_FILE
@@ -30,11 +31,14 @@ def test_start_producer():
     full_sync_obj.create_jobs_for_teams = Mock()
     _, logger = settings()
     queue = ConnectorQueue(logger)
+
+    # Execute
     full_sync_obj.start_producer(queue)
 
 
 def test_start_consumer(caplog):
     """Test that start consumer process for full sync."""
+    # Setup
     caplog.set_level("INFO")
     args = argparse.Namespace()
     args.name = "dummy"
@@ -44,5 +48,9 @@ def test_start_consumer(caplog):
     full_sync_obj.create_and_execute_jobs = Mock(return_value=[])
     _, logger = settings()
     queue = ConnectorQueue(logger)
+
+    # Execute
     full_sync_obj.start_consumer(queue)
+
+    # Assert
     assert "Completed indexing of the Microsoft Teams objects" in caplog.text

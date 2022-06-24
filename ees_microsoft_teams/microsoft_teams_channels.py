@@ -11,7 +11,6 @@ from .utils import (get_data_from_http_response, get_schema_fields)
 
 MEETING_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 CHANNEL_MEETINGS = "Channel Meetings"
-TEAMS_PAGE_SIZE = 999
 
 
 class MSTeamsChannels:
@@ -32,61 +31,77 @@ class MSTeamsChannels:
             Returns:
                 teams_details: List of dictionaries containing the team details
         """
-        documents = []
-        teams_url = f"{constant.GRAPH_BASE_URL}/groups"
         self.logger.info("Fetching teams from Microsoft Teams...")
-        team_response = self.client.get(teams_url, constant.TEAMS, is_pagination=True, is_filter=False,
-                                        page_size=TEAMS_PAGE_SIZE, filter_query="/")
-        team_response_data = get_data_from_http_response(
-            self.logger, team_response, "Could not fetch the teams from Microsoft Teams",
-            "Error while fetching the teams from Microsoft Teams")
-        if team_response_data:
-            team_schema = get_schema_fields("teams", self.object_type_to_index)
-            for team in team_response_data:
-                # Logic to append teams for deletion
-                self.local_storage.insert_document_into_doc_id_storage(ids_list, team["id"], constant.TEAMS, "", "")
-                team_data = {"type": constant.TEAMS}
-                for workplace_search_field, microsoft_teams_fields in team_schema.items():
-                    team_data[workplace_search_field] = team[microsoft_teams_fields]
-                if self.is_permission_sync_enabled:
-                    team_data["_allow_permissions"] = [team["id"]]
-                documents.append(team_data)
+        documents = []
+        response = self.client.get_teams(next_url=f"{constant.GRAPH_BASE_URL}/groups")
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response,
+            error_message="Could not fetch the teams from Microsoft Teams",
+            exception_message="Error while fetching the teams from Microsoft Teams",
+        )
+
+        if not parsed_response:
+            return []
+
+        team_schema = get_schema_fields("teams", self.object_type_to_index)
+        for team in parsed_response:
+            team_data = {"type": constant.TEAMS}
+            # Logic to append teams for deletion
+            self.local_storage.insert_document_into_doc_id_storage(
+                ids_list=ids_list, id=team["id"], type=constant.TEAMS
+            )
+
+            for workplace_search_field, microsoft_teams_field in team_schema.items():
+                team_data[workplace_search_field] = team[microsoft_teams_field]
+
+            if self.is_permission_sync_enabled:
+                team_data["_allow_permissions"] = [team["id"]]
+
+            documents.append(team_data)
         return documents
 
     def get_team_members(self):
         """ Fetches the team members from Microsoft Teams
             Returns:
-                member_list: List having all the team members
+                member_list: List containing all the team members
         """
+        self.logger.info("Fetching the team members from Microsoft Teams")
+
         member_list = {}
-        teams_url = f"{constant.GRAPH_BASE_URL}/groups"
-        try:
-            teams_response = self.client.get(teams_url, constant.TEAMS, is_pagination=True, is_filter=False,
-                                             page_size=TEAMS_PAGE_SIZE, filter_query="/")
-            team_response_data = get_data_from_http_response(
-                self.logger, teams_response, "Could not fetch the teams from Microsoft Teams",
-                "Error while fetching the teams from Microsoft Teams")
-            if team_response_data:
-                for team in team_response_data:
-                    self.logger.info(f"Fetching team members for team: {team['displayName']}...")
-                    team_id = team['id']
-                    team_member_url = f"{constant.GRAPH_BASE_URL}/teams/{team_id}/members"
-                    team_member_response = self.client.get(
-                        team_member_url, constant.MEMBER, is_pagination=True, is_filter=False,
-                        page_size=TEAMS_PAGE_SIZE, filter_query="/")
-                    member_response_data = get_data_from_http_response(
-                        self.logger, team_member_response, f"No team member found for team: {team['displayName']}",
-                        f"Error while fetching the team members for team: {team['displayName']}")
-                    if member_response_data:
-                        for member in member_response_data:
-                            display_name = member["displayName"]
-                            if member_list.get(display_name):
-                                member_list[display_name].append(team_id)
-                            else:
-                                member_list[display_name] = [team_id]
-        except Exception as exception:
-            self.logger.exception(f"Error while fetching the team members from Microsoft Teams. Error: {exception}")
-            raise exception
+        response = self.client.get_teams(next_url=f"{constant.GRAPH_BASE_URL}/groups")
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response,
+            error_message="Could not fetch the teams from Microsoft Teams",
+            exception_message="Error while fetching the teams from Microsoft Teams",
+        )
+
+        if not parsed_response:
+            return member_list
+
+        for team in parsed_response:
+            self.logger.info(f"Fetching members for the team: {team['displayName']}")
+            team_id = team["id"]
+            response = self.client.get_teams(
+                next_url=f"{constant.GRAPH_BASE_URL}/teams/{team_id}/members"
+            )
+            parsed_response = get_data_from_http_response(
+                logger=self.logger,
+                response=response,
+                error_message=f"No team member found for team: {team['displayName']}",
+                exception_message=f"Error while fetching the team members for team: {team['displayName']}",
+            )
+
+            if not parsed_response:
+                return {}
+
+            for member in parsed_response:
+                display_name = member["displayName"]
+                if member_list.get(display_name):
+                    member_list[display_name].append(team_id)
+                else:
+                    member_list[display_name] = [team_id]
         return member_list
 
     def get_team_channels(self, teams, ids_list):
@@ -102,26 +117,37 @@ class MSTeamsChannels:
         for team in teams:
             team_id = team["id"]
             team_name = team["title"]
-            channel_url = f"{constant.GRAPH_BASE_URL}/teams/{team_id}/channels"
-            self.logger.info(f"Fetching channels for team: {team_name}")
-            channel_response = self.client.get(channel_url, constant.CHANNELS, is_pagination=False, is_filter=False)
-            channel_response_data = get_data_from_http_response(
-                self.logger, channel_response.json(),
-                f"Could not fetch the channels for team: {team_name}",
-                f"Error while fetching the channels for team: {team_name}")
-            if channel_response_data:
-                channel_schema = get_schema_fields("channels", self.object_type_to_index)
-                channels_by_team = {team_id: []}
-                for channel in channel_response_data:
-                    # Logic to append channels for deletion
-                    self.local_storage.insert_document_into_doc_id_storage(ids_list, channel["id"], constant.CHANNELS,
-                                                                           team_id, "")
-                    channel_data = {"type": constant.CHANNELS}
-                    for ws_field, ms_field in channel_schema.items():
-                        channel_data[ws_field] = channel[ms_field]
-                    if self.is_permission_sync_enabled:
-                        channel_data["_allow_permissions"] = [team_id]
-                    documents.append(channel_data)
-                    channels_by_team[team_id].append(channel_data)
-                documents_with_teams.append(channels_by_team)
+            self.logger.info(f"Fetching the channels for team: {team_name}")
+
+            response = self.client.get_channels(
+                next_url=f"{constant.GRAPH_BASE_URL}/teams/{team_id}/channels"
+            )
+            parsed_response = get_data_from_http_response(
+                logger=self.logger,
+                response=response,
+                error_message=f"Could not fetch the channels for team: {team_name}",
+                exception_message=f"Error while fetching the channels for team: {team_name}",
+            )
+
+            if not parsed_response:
+                continue
+
+            channel_schema = get_schema_fields("channels", self.object_type_to_index)
+            channels_by_team = {team_id: []}
+            for channel in parsed_response:
+                # Logic to append channels for deletion
+                self.local_storage.insert_document_into_doc_id_storage(
+                    ids_list, channel["id"], constant.CHANNELS, team_id, ""
+                )
+                channel_data = {"type": constant.CHANNELS}
+
+                for workplace_search_field, microsoft_teams_field in channel_schema.items():
+                    channel_data[workplace_search_field] = channel[microsoft_teams_field]
+
+                if self.is_permission_sync_enabled:
+                    channel_data["_allow_permissions"] = [team_id]
+
+                documents.append(channel_data)
+                channels_by_team[team_id].append(channel_data)
+            documents_with_teams.append(channels_by_team)
         return documents_with_teams, documents

@@ -77,10 +77,15 @@ def create_channel_obj():
 )
 def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
     """Test get all teams"""
+    # Setup
     channel_obj = create_channel_obj()
     channel_obj.get_schema_fields = Mock(return_value=teams_schema_field)
     channel_obj.client.get = Mock(return_value=mock_teams)
+
+    # Execute
     target_teams = channel_obj.get_all_teams([1, 2])
+
+    # Assert
     assert target_teams == source_teams
 
 
@@ -115,9 +120,14 @@ def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
 )
 def test_get_team_members(mock_teams):
     """Test get members of team"""
+    # Setup
     team_member_obj = create_channel_obj()
     team_member_obj.client.get = Mock(return_value=mock_teams)
+
+    # Execute
     target_teams = team_member_obj.get_team_members()
+
+    # Assert
     assert target_teams == {'Golf Assist': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4']}
 
 
@@ -157,13 +167,18 @@ def test_get_team_members(mock_teams):
 )
 def test_get_team_channels(channel_schema, source_teams, source_channels):
     """Test get channels for teams"""
+    # Setup
     channel_tabs_obj = create_channel_obj()
     teams = [{"title": "dummy", "id": 1}]
     new_response = Response()
     new_response._content = b'{"value": [{"id": "1", "createdDateTime": "2017-07-31T18:56:16.533Z", "displayName": "General", "description": "description", "email": "", "webUrl": "https://teams.microsoft.com/l/", "membershipType": "standard"}]}'
     new_response.status_code = 200
-    channel_tabs_obj.client.get = Mock(return_value=new_response)
+    channel_tabs_obj.client.get = Mock(return_value=new_response.json())
     channel_tabs_obj.get_schema_fields = Mock(return_value=channel_schema)
+
+    # Execute
     target_teams, target_channels = channel_tabs_obj.get_team_channels(teams, [1, 2])
+
+    # Assert
     assert target_teams == source_teams
     assert target_channels == source_channels
