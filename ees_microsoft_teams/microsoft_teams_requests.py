@@ -46,7 +46,7 @@ class TooManyRequestException(Exception):
     to the Microsoft Teams using Graph APIs.
     Attributes:
         message -- explanation of the error
-        retry_after_seconds -- Time in seconds to retry
+        retry_after_seconds -- Indicates the amount of seconds to wait before retrying the connection
     """
 
     def __init__(self, message, retry_after_seconds):
