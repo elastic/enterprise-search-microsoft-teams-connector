@@ -79,14 +79,13 @@ class SyncEnterpriseSearch:
                     )
                 except IndexingError as exception:
                     raise IndexingError(exception)
-                for each in response["results"]:
-                    if each["errors"]:
-                        item = self.fetch_documents_by_id(each, documents)
+                for result in response["results"]:
+                    if result["errors"]:
+                        failed_document_list = self.fetch_documents_by_id(result, documents)
                         # Removing the failed document from the successfully indexed document count
-                        failed_document = item[0]
-                        documents.remove(failed_document)
+                        documents = [document for document in documents if document not in failed_document_list]
                         self.logger.error(
-                            f"Error while indexing {each['id']}. Error: {each['errors']}"
+                            f"Error while indexing {result['id']}. Error: {result['errors']}"
                         )
             total_inserted_record_dict = self.get_records_by_types(documents)
             for type, count in total_records_dict.items():

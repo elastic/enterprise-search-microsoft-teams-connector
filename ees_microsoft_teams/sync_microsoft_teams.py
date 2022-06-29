@@ -24,27 +24,23 @@ class SyncMicrosoftTeams:
         self.local_storage = LocalStorage(config)
         self.queue = queue
 
-    def fetch_teams(self, teams_obj, ids_list, is_deletion):
+    def fetch_teams(self, teams_obj, ids_list):
         """Fetches teams from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
-        :param is_deletion: Flag to check if the function is used for deletion
         """
         teams = teams_obj.get_all_teams(ids_list)
-        if not is_deletion and "teams" in self.objects:
+        if "teams" in self.objects:
             self.queue.append_to_queue(constant.TEAMS, teams)
         return teams
 
-    def fetch_channels(self, teams_obj, ids_list, is_deletion, teams):
+    def fetch_channels(self, teams_obj, ids_list, teams):
         """Fetches channels from Microsoft Teams
         :param teams: List of teams to fetch the channels
         :param teams_obj: Class object to fetch teams and its objects
         :param ids_list: Document ids list from respective doc id file
-        :param is_deletion: Flag to check if the function is used for deletion
         """
         channels, channel_documents = teams_obj.get_team_channels(teams, ids_list)
-        if is_deletion:
-            return [{"channels": channels, "channel_documents": channel_documents}]
         if "channels" in self.objects:
             self.queue.append_to_queue(constant.CHANNELS, channel_documents)
         return channels

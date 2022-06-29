@@ -164,7 +164,7 @@ class BaseCommand:
                 user_permissions = microsoft_teams_object.get_team_members()
                 sync_microsoft_teams.sync_permissions(user_permissions)
 
-            teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list, False)
+            teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list)
 
             teams_partition_list = split_documents_into_equal_chunks(
                 teams, thread_count
@@ -175,8 +175,7 @@ class BaseCommand:
                 sync_microsoft_teams.fetch_channels,
                 (
                     microsoft_teams_object,
-                    ids_list,
-                    False
+                    ids_list
                 ),
                 teams_partition_list,
             )

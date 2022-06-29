@@ -9,6 +9,7 @@
 from json import JSONDecodeError
 
 import requests
+import time
 from requests.exceptions import RequestException
 from requests.models import Response
 
@@ -46,13 +47,11 @@ class TooManyRequestException(Exception):
     to the Microsoft Teams using Graph APIs.
     Attributes:
         message -- explanation of the error
-        retry_after_seconds -- Indicates the amount of seconds to wait before retrying the connection
     """
 
-    def __init__(self, message, retry_after_seconds):
+    def __init__(self, message):
         super().__init__(message)
         self.message = message
-        self.retry_after_seconds = retry_after_seconds
 
 
 class QueryBuilder(object):
@@ -76,7 +75,7 @@ class MSTeamsRequests:
         self.config = config
         self.retry_count = int(config.get_value("retry_count"))
 
-    @retry(exception_list=(RequestException, ResponseException, UnauthorizedException))
+    @retry(exception_list=(RequestException, ResponseException, UnauthorizedException, TooManyRequestException))
     def get(self, url, object_type):
         """Invokes a GET call to the Microsoft Graph API
         :param url: Request URL to call the Graph API
@@ -104,9 +103,9 @@ class MSTeamsRequests:
                     raise UnauthorizedException
                 elif status_code == 429:
                     retry_after_seconds = int(response.headers.get("Retry-After", 60))
+                    time.sleep(retry_after_seconds)
                     raise TooManyRequestException(
-                        message="Received TooManyRequestException while fetching the Teams",
-                        retry_after=retry_after_seconds,
+                        message="Received TooManyRequestException while fetching the Teams"
                     )
                 else:
                     return self.handle_4xx_errors(

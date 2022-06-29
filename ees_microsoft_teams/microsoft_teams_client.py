@@ -6,27 +6,13 @@
 """This module queries Microsoft Teams Graph API and returns the parsed response.
 """
 
-import time
-
 from . import constant
 from .microsoft_teams_requests import (
     MSTeamsRequests,
     TooManyRequestException,
     QueryBuilder,
 )
-from .utils import retry
-
-
-class ResponseException(Exception):
-    """Exception raised when there is an internal server error encountered by connecting to the Microsoft Teams using
-    Graph APIs.
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
+from .utils import retry, get_data_from_http_response
 
 
 class MSTeamsClient(MSTeamsRequests):
@@ -59,19 +45,19 @@ class MSTeamsClient(MSTeamsRequests):
                 if not next_url or next_url == url:
                     next_url = None
 
-            except TooManyRequestException as exception:
-                self.logger.error(
-                    f"{exception.message}. Retrying in {exception.retry_after_seconds} seconds"
-                )
-                time.sleep(exception.retry_after_second)
-                continue
-
             except Exception as unknown_exception:
                 self.logger.exception(
                     f"Error while fetching the Microsoft Team. Error: {unknown_exception}"
                 )
 
-        return response_list
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message="Could not fetch the teams from Microsoft Teams",
+            exception_message="Error while fetching the teams from Microsoft Teams",
+        )
+
+        return parsed_response
 
     @retry(exception_list=(TooManyRequestException))
     def get_channels(self, next_url):
@@ -79,13 +65,15 @@ class MSTeamsClient(MSTeamsRequests):
             :param next_url: URL to invoke Graph API call
         """
         try:
-            return self.get(url=next_url, object_type=constant.CHANNELS)
-        except TooManyRequestException as exception:
-            self.logger.error(
-                f"{exception.message}. Retrying in {exception.retry_after_seconds} seconds"
+            response = self.get(url=next_url, object_type=constant.CHANNELS)
+            parsed_response = get_data_from_http_response(
+                logger=self.logger,
+                response=response,
+                error_message="Could not fetch the teams from Microsoft Teams",
+                exception_message="Error while fetching the teams from Microsoft Teams",
             )
-            time.sleep(exception.retry_after_second)
-            raise exception
+            return parsed_response
+
         except Exception as unknown_exception:
             self.logger.exception(
                 f"Error while fetching the Microsoft Team. Error: {unknown_exception}"
