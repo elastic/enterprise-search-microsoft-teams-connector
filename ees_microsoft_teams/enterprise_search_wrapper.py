@@ -86,5 +86,5 @@ class EnterpriseSearchWrapper:
             )
         except Exception as exception:
             self.logger.exception(f"Error while indexing the files. Error: {exception}")
-            raise exception
+            raise
         return responses
