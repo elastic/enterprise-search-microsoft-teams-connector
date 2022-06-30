@@ -8,7 +8,8 @@ import pandas as pd
 from iteration_utilities import unique_everseen
 
 from . import constant
-from .utils import split_documents_into_equal_chunks, split_list_into_buckets
+from .utils import (split_documents_into_equal_chunks, split_list_into_buckets, split_documents_into_equal_bytes,
+                    is_document_in_present_data)
 
 PERMISSION_LIMIT = 1024
 
@@ -38,6 +39,7 @@ class SyncEnterpriseSearch:
         self.queue = queue
         self.checkpoint_list = []
         self.permission_list_to_index = []
+        self.max_allowed_bytes = 10000000
 
     def get_records_by_types(self, documents):
         """This method is used to for grouping the document based on their type
@@ -52,19 +54,12 @@ class SyncEnterpriseSearch:
         data_frame_dict = data_frame_size.to_dict()
         return data_frame_dict
 
-    def filter_removed_item_by_id(self, item, id):
-        """This method is used filter removed document by id
-        :param item: Pass document
-        :param id: Pass id of the document which having error from workplace search
-        """
-        return item["id"] == id
-
     def fetch_documents_by_id(self, response, documents):
         """Filters the documents which are getting failed while indexing
         :param response: Response getting from the Workplace Search
         :param documents: Documents to be indexed into the Workplace Search
         """
-        return list(filter(lambda seq: self.filter_removed_item_by_id(seq, response["id"]), documents,))
+        return list(filter(lambda seq: is_document_in_present_data(seq, response["id"], "id"), documents,))
 
     def index_documents(self, documents):
         """This method indexes the documents to the workplace.
@@ -97,23 +92,28 @@ class SyncEnterpriseSearch:
         """Pull documents from the queue and synchronize it to the Enterprise Search."""
         signal_open = True
         while signal_open:
-            for _ in range(0, self.enterprise_search_thread_count):
-                documents_to_index = []
-                while len(documents_to_index) < constant.BATCH_SIZE:
-                    documents = self.queue.get()
-                    if documents.get("type") == "signal_close":
-                        signal_open = False
-                        break
-                    elif documents.get("type") == "checkpoint":
-                        self.checkpoint_list.append(documents)
-                        break
-                    else:
-                        documents_to_index.extend(documents.get("data"))
-                if documents_to_index:
-                    documents_to_index = list(unique_everseen(documents_to_index))
-                    for chunk in split_documents_into_equal_chunks(
-                        documents_to_index, constant.BATCH_SIZE
+            documents_to_index = []
+            while (
+                    len(documents_to_index) < constant.BATCH_SIZE
+                    and len(str(documents_to_index)) < self.max_allowed_bytes
+            ):
+                documents = self.queue.get()
+                if documents.get("type") == "signal_close":
+                    signal_open = False
+                    break
+                elif documents.get("type") == "checkpoint":
+                    self.checkpoint_list.append(documents)
+                    break
+                else:
+                    documents_to_index.extend(documents.get("data"))
+            if documents_to_index:
+                documents_to_index = list(unique_everseen(documents_to_index))
+                for chunk in split_documents_into_equal_chunks(
+                    documents_to_index, constant.BATCH_SIZE
+                ):
+                    for documents in split_documents_into_equal_bytes(
+                        chunk, self.max_allowed_bytes
                     ):
                         self.index_documents(chunk)
-                if not signal_open:
-                    break
+            if not signal_open:
+                break

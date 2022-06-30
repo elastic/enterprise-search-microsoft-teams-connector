@@ -16,7 +16,7 @@ from tika import parser
 
 from . import constant
 from .adapter import DEFAULT_SCHEMA
-from more_itertools import chunked
+from more_itertools import chunked, divide
 
 TIMEOUT = 400
 
@@ -136,14 +136,8 @@ def split_list_into_buckets(object_list, total_groups):
         :param object_list: List to be partitioned
         :param total_groups: Number of groups to be formed
     """
-    if object_list:
-        groups = min(total_groups, len(object_list))
-        group_list = []
-        for i in range(groups):
-            group_list.append(object_list[i::groups])
-        return group_list
-    else:
-        return []
+    group_list = [list(i) for i in divide(total_groups, object_list)]
+    return group_list
 
 
 def split_documents_into_equal_chunks(documents, chunk_size):
@@ -211,3 +205,30 @@ def is_document_in_present_data(document, document_id, key):
         :param key: Key for fetching the value
     """
     return document[key] == document_id
+
+
+def split_documents_into_equal_bytes(documents, allowed_size):
+    """This method splits a list or dictionary into list based on allowed size limit.
+    :param documents: List or Dictionary to be partitioned into chunks
+    :param allowed_size: Maximum size allowed for indexing per request.
+    Returns:
+        list_of_chunks: List of list of dictionary containing the dictionaries to be indexed.
+    """
+    list_of_chunks = []
+    chunk = []
+    current_size = allowed_size
+    for document in documents:
+        document_size = len(str(document))
+        if document_size < current_size:
+            chunk.append(document)
+            current_size -= document_size
+        else:
+            if chunk:
+                list_of_chunks.append(chunk)
+            if document_size > allowed_size:
+                document["body"] = None
+                document_size = len(str(document))
+            chunk = [document]
+            current_size = allowed_size - document_size
+    list_of_chunks.append(chunk)
+    return list_of_chunks
