@@ -9,6 +9,7 @@ import os
 import sys
 from unittest.mock import Mock
 
+import pytest
 from elastic_enterprise_search import __version__
 from packaging import version
 
@@ -42,15 +43,61 @@ def create_enterprise_search_wrapper_obj():
     return EnterpriseSearchWrapper(logger, configs, args)
 
 
+@pytest.mark.parametrize(
+    "source_documents, mock_documents",
+    [
+        (
+            [
+                {
+                    "id": 0,
+                    "title": "demo",
+                    "body": "Not much. It is a made up thing.",
+                    "url": "https://teams.microsoft.com/demo.txt",
+                    "created_at": "2019-06-01T12:00:00+00:00",
+                    "type": "user_chats",
+                },
+                {
+                    "id": 1,
+                    "title": "demo1",
+                    "body": "Not much. It is a made up thing.",
+                    "url": "https://teams.microsoft.com/demo1.txt",
+                    "created_at": "2019-06-01T12:00:00+00:00",
+                    "type": "user_chats",
+                },
+            ],
+            {"results": [{"id": "0", "errors": []}, {"id": "1", "errors": []}]},
+        )
+    ],
+)
+def test_index_documents(source_documents, mock_documents):
+    """Test that indexing documents to workplace search"""
+    # Setup
+    wrapper_obj = create_enterprise_search_wrapper_obj()
+    wrapper_obj.workplace_search_client.index_documents = Mock(
+        return_value=mock_documents
+    )
+
+    # Execute
+    result = wrapper_obj.index_documents(source_documents, 1000)
+
+    # Assert
+    assert len(result["results"]) == len(source_documents)
+
+
 def test_create_content_source(caplog):
     """Test execute method in Bootstrap file creates a content source in the Workplace Search."""
+    # Setup
     wrapper_obj = create_enterprise_search_wrapper_obj()
     caplog.set_level("INFO")
     mock_response = {"id": "1234"}
     wrapper_obj.workplace_search_client.create_content_source = Mock(
         return_value=mock_response
     )
+
+    # Execute
     wrapper_obj.create_content_source("schema", "display", "name", "is_searchable")
+
+    # Assert
     assert (
         "Created ContentSource with ID 1234." in caplog.text
     )

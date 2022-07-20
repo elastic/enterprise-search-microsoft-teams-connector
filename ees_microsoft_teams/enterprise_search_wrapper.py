@@ -71,3 +71,20 @@ class EnterpriseSearchWrapper:
             )
         except Exception as exception:
             self.logger.error(f"Could not create a content source, Error {exception}")
+
+    def index_documents(self, documents, timeout):
+        """Indexes one or more new documents into a custom content source, or updates one
+        or more existing documents
+        :param documents: list of documents to be indexed
+        :param timeout: Timeout in seconds
+        """
+        try:
+            responses = self.workplace_search_client.index_documents(
+                content_source_id=self.ws_source,
+                documents=documents,
+                request_timeout=timeout,
+            )
+        except Exception as exception:
+            self.logger.exception(f"Error while indexing the files. Error: {exception}")
+            raise
+        return responses

@@ -8,6 +8,7 @@ from ees_microsoft_teams.configuration import Configuration
 from ees_microsoft_teams import utils
 import pytest
 import logging
+import math
 import os
 import sys
 
@@ -45,67 +46,6 @@ def test_url_decode():
         "id%3D184ff84d27c3613d&quality=medium"
     )
     assert source_decoded_url == target_decoded_url
-
-
-@pytest.mark.parametrize(
-    "ids_list, source_documents, parent_id",
-    [
-        (
-            [{
-                "id": "1645460238462",
-                "type": "User Chat Messages",
-                "parent_id": "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-                "super_parent_id": ""
-            }],
-            [{
-                "id": "1645460238462",
-                "type": "User Chat Messages",
-                "parent_id": "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-                "super_parent_id": ""
-            }],
-            "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-        )
-    ],
-)
-def test_insert_document_into_doc_id_storage_when_no_new_id_added(ids_list, source_documents, parent_id):
-    """Test method for inserting the ids into doc id"""
-    target_documents = utils.insert_document_into_doc_id_storage(
-        ids_list, "1645460238462", "User Chat Messages", parent_id, "")
-    assert source_documents == target_documents
-
-
-@pytest.mark.parametrize(
-    "ids_list, source_documents, parent_id",
-    [
-        (
-            [{
-                "id": "1645460238462",
-                "type": "User Chat Messages",
-                "parent_id": "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-                "super_parent_id": ""
-            }],
-            [{
-                'id': '1645460238462',
-                'type': 'User Chat Messages',
-                'parent_id': '19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2',
-                'super_parent_id': ''
-            },
-                {
-                'id': '1645460238461',
-                'type': 'User Chat Messages',
-                'parent_id': '19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2',
-                'super_parent_id': ''
-            }
-            ],
-            "19:meeting_MDZlN2M4OTQtZWQ5Ny00MT@thread.v2",
-        )
-    ],
-)
-def test_insert_document_into_doc_id_storage_when_new_id_added(ids_list, source_documents, parent_id):
-    """Test method for inserting the ids into doc id when new id is added to id list"""
-    target_documents = utils.insert_document_into_doc_id_storage(
-        ids_list, "1645460238461", "User Chat Messages", parent_id, "")
-    assert source_documents == target_documents
 
 
 def test_split_list_into_buckets():
@@ -162,7 +102,7 @@ def test_html_to_text():
 
 
 @pytest.mark.parametrize(
-    "document_name, objects, source_schema_fields",
+    "document_name, object_type_to_index, source_schema_fields",
     [
         (
             "user_chats",
@@ -171,9 +111,9 @@ def test_html_to_text():
         )
     ],
 )
-def test_get_schema_fields(document_name, objects, source_schema_fields):
+def test_get_schema_fields(document_name, object_type_to_index, source_schema_fields):
     """Test the fetching of schema fields"""
-    target_schema_fields = utils.get_schema_fields(document_name, objects)
+    target_schema_fields = utils.get_schema_fields(document_name, object_type_to_index)
     assert source_schema_fields == target_schema_fields
 
 
@@ -191,3 +131,29 @@ def test_get_records_by_types():
     ]
     target_records_type = utils.get_records_by_types(document)
     assert target_records_type == {'user_chats': 1}
+
+
+def test_split_documents_into_equal_chunks():
+    """Test the split of documents into equal chunk"""
+    document = [
+        {
+            "id": 0,
+            "title": "demo",
+            "body": "Not much. It is a made up thing.",
+            "url": "https://chats.microsoft.com/demo.txt",
+            "created_at": "2019-06-01T12:00:00+00:00",
+            "type": "user_chats",
+        },
+        {
+            "id": 1,
+            "title": "teams_demo",
+            "body": "This is a teams demo body.",
+            "url": "https://teams.microsoft.com/demo.txt",
+            "created_at": "2019-06-01T12:00:00+00:00",
+            "type": "teams",
+        }
+    ]
+    no_of_thread = 3
+    source_chunk = math.ceil(len(document) / no_of_thread)
+    target_chunk = utils.split_documents_into_equal_chunks(document, no_of_thread)
+    assert len(target_chunk) == source_chunk

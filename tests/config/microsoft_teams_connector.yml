@@ -26,7 +26,7 @@ enable_document_permission: Yes
 #Specifies the objects to be fetched and indexed in the WorkPlace search along with fields
 #that needs to be included/excluded. The list of the objects supported are users, teams,
 #channels, chat_messages. By default all the objects are fetched
-objects:
+object_type_to_index:
   teams:
   channels:
   channel_messages:

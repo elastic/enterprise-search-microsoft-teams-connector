@@ -16,6 +16,7 @@ from tika import parser
 
 from . import constant
 from .adapter import DEFAULT_SCHEMA
+from more_itertools import chunked, divide
 
 TIMEOUT = 400
 
@@ -55,8 +56,8 @@ def html_to_text(logger, content):
         logger.exception(f"Error: {exception}")
 
 
-def check_response(logger, response, error_message, exception_message):
-    """ This function is used to check and read the data received from API response
+def get_data_from_http_response(logger, response, error_message, exception_message):
+    """ This function is used to get the data received from API response
         :param logger: Logger object
         :param response: Response from Microsoft Teams
         :param error_message: Error message if not getting the response
@@ -73,24 +74,6 @@ def check_response(logger, response, error_message, exception_message):
     except ValueError as exception:
         logger.exception(f"{exception_message} Error: {exception}")
         raise exception
-
-
-def insert_document_into_doc_id_storage(ids_list, id, type, parent_id, super_parent_id):
-    """ Prepares the document dictionary for deletion and insert it into the global_keys of respective doc_ids.json.
-        :param ids_list: Pass "global_keys" of microsoft_teams_user_chat_doc_ids.json,
-            microsoft_teams_channel_chat_doc_ids.json and microsoft_teams_calendar_doc_ids.json
-        :param id: Pass id of User Chat, User Chat Attachment, Calendar, Calendar Attachment, Teams, Channel Chat,
-            Channel Chat Attachment, Channel Chat Tabs and User Chat Tabs
-        :param type: Pass type of each document for deletion.
-        :param parent_id: Pass parent id of each document for deletion.
-        :param super_parent_id: Pass super parent id of each document for deletion
-    """
-    new_item = {"id": str(id), "type": type, "parent_id": str(parent_id), "super_parent_id": str(super_parent_id)}
-    if new_item not in ids_list:
-        ids_list.append(new_item)
-        return ids_list
-    else:
-        return ids_list
 
 
 def url_decode(text):
@@ -153,14 +136,19 @@ def split_list_into_buckets(object_list, total_groups):
         :param object_list: List to be partitioned
         :param total_groups: Number of groups to be formed
     """
-    if object_list:
-        groups = min(total_groups, len(object_list))
-        group_list = []
-        for i in range(groups):
-            group_list.append(object_list[i::groups])
-        return group_list
-    else:
-        return []
+    group_list = [list(i) for i in divide(total_groups, object_list)]
+    return group_list
+
+
+def split_documents_into_equal_chunks(documents, chunk_size):
+    """This method splits a list or dictionary into equal chunks size
+    :param documents: List or Dictionary to be partitioned into chunks
+    :param chunk_size: Maximum size of a chunk
+    Returns:
+        list_of_chunks: List containing the chunks
+    """
+    list_of_chunks = list(chunked(documents, chunk_size))
+    return list_of_chunks
 
 
 def get_thread_results(thread_results):
@@ -217,3 +205,30 @@ def is_document_in_present_data(document, document_id, key):
         :param key: Key for fetching the value
     """
     return document[key] == document_id
+
+
+def split_documents_into_equal_bytes(documents, allowed_size):
+    """This method splits a list or dictionary into list based on allowed size limit.
+    :param documents: List or Dictionary to be partitioned into chunks
+    :param allowed_size: Maximum size allowed for indexing per request.
+    Returns:
+        list_of_chunks: List of list of dictionary containing the dictionaries to be indexed.
+    """
+    list_of_chunks = []
+    chunk = []
+    current_size = allowed_size
+    for document in documents:
+        document_size = len(str(document))
+        if document_size < current_size:
+            chunk.append(document)
+            current_size -= document_size
+        else:
+            if chunk:
+                list_of_chunks.append(chunk)
+            if document_size > allowed_size:
+                document["body"] = None
+                document_size = len(str(document))
+            chunk = [document]
+            current_size = allowed_size - document_size
+    list_of_chunks.append(chunk)
+    return list_of_chunks

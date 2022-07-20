@@ -16,6 +16,9 @@ from yaml.error import YAMLError
 from .constant import DATETIME_FORMAT
 from .schema import schema
 
+ALLOWED_OBJECTS = ["teams", "channels", "channel_messages", "channel_tabs", "channel_documents",
+                   "user_chats", "calendar"]
+
 
 class ConfigurationInvalidException(Exception):
     """Exception raised when configuration was invalid.
@@ -60,6 +63,12 @@ class Configuration:
         if self.__configurations["start_time"] >= self.__configurations["end_time"]:
             raise ConfigurationInvalidException(f"The start_time: {self.__configurations['start_time']}  \
                     cannot be greater than or equal to the end_time: {self.__configurations['end_time']}")
+
+        config_objects = list(self.__configurations["object_type_to_index"].keys())
+        if not all(item in ALLOWED_OBJECTS for item in config_objects):
+            raise ConfigurationInvalidException("Invalid object has configured. Allowed object_type_to_index are: "
+                                                "teams, channels, channel_messages, channel_tabs, channel_documents, "
+                                                "user_chats, calendar")
         # Converting datetime object to string
         for date_config in ["start_time", "end_time"]:
             value = self.__configurations[date_config]

@@ -63,7 +63,7 @@ schema = {
         'type': 'boolean',
         'default': True
     },
-    'objects': {
+    'object_type_to_index': {
         'type': 'dict',
         'nullable': True,
         'schema': {
