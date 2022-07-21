@@ -5,6 +5,7 @@
 #
 """This module queries Microsoft Teams Graph API and returns the parsed response.
 """
+import pandas
 
 from . import constant
 from .microsoft_teams_requests import (
@@ -78,3 +79,48 @@ class MSTeamsClient(MSTeamsRequests):
             self.logger.exception(
                 f"Error while fetching the Microsoft Team. Error: {unknown_exception}"
             )
+
+    def get_channel_messages(self, next_url, start_time, end_time, channel_name="", is_message_replies=False):
+        """ Get channel messages from the Microsoft Teams with the support of pagination and
+            filtration.
+            :param next_url: URL to invoke Graph API call
+            :param start_time: Starting time to fetch channel messages
+            :param end_time: Ending time to fetch channel messages
+            :param channel_name: Channel for fetching messages
+            :param is_message_replies: Flag to check if method is used for fetching message replies
+        """
+        response_list = {"value": []}
+        while next_url:
+            try:
+                query = self.query_builder.get_query_for_channel_and_chat_messages().strip()
+                url = f"{next_url}{query}"
+                response_json = self.get(url=url, object_type=constant.CHANNEL_MESSAGES)
+                data_frame = pandas.DataFrame(response_json.get("value"))
+
+                if not data_frame.empty:
+                    row = data_frame
+
+                    data_frame.lastModifiedDateTime = pandas.to_datetime(data_frame.lastModifiedDateTime)
+                    filtered_df = row.loc[(data_frame['lastModifiedDateTime'] >= start_time) & (
+                        data_frame['lastModifiedDateTime'] < end_time)]
+                    filter_data = filtered_df.to_dict('records')
+                    response_list["value"].extend(filter_data)
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url or next_url == url:
+                    next_url = None
+
+            except Exception as unknown_exception:
+                self.logger.exception(f"Error while fetching the Microsoft Team. Error: {unknown_exception}")
+
+        if is_message_replies:
+            return response_list
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch the messages for channel: {channel_name}",
+            exception_message=f"Error while fetching the messages for channel: {channel_name}"
+        )
+        return parsed_response

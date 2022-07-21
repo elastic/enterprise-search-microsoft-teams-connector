@@ -65,6 +65,9 @@ class QueryBuilder(object):
     def get_query_for_teams(self, page_size=999):
         return f"?$top={page_size}"
 
+    def get_query_for_channel_and_chat_messages(self, page_size=50):
+        return f"?$top={page_size}"
+
 
 class MSTeamsRequests:
     """This class invokes GET call to the Microsoft Graph API and handles the errors."""
