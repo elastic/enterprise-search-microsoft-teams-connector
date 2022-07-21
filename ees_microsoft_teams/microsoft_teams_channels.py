@@ -175,17 +175,17 @@ class MSTeamsChannels:
         channel_id = channel["id"]
         channel_name = channel["title"]
         channel_message_schema = get_schema_fields("channel_messages", self.object_type_to_index)
-        for message_dict in message_response_data:
+        for message in message_response_data:
             message_data = {"type": constant.CHANNEL_MESSAGES}
-            if not message_dict["deletedDateTime"]:
-                content = html_to_text(self.logger, message_dict["body"]["content"])
-                attachments = message_dict.get("attachments")
-                is_meeting = message_dict.get("eventDetail") and message_dict.get(
+            if not message["deletedDateTime"]:
+                content = html_to_text(self.logger, message["body"]["content"])
+                attachments = message.get("attachments")
+                is_meeting = message.get("eventDetail") and message.get(
                     "eventDetail", {}).get("callEventType")
                 if content or attachments or is_meeting:
                     if content or attachments:
                         self.logger.info("Extracting html/text messages...")
-                        sender = message_dict["from"]["user"]["displayName"]
+                        sender = message["from"]["user"]["displayName"]
                         attachment_names = self.get_attachment_names(attachments)
                         message_data["title"] = channel_name
                         # If the message has attachments in it, set the message body format to
@@ -204,7 +204,7 @@ class MSTeamsChannels:
                             f"Extracting meeting details for channel: {channel['title']} from "
                             "Microsoft Teams...")
                         message_data["type"] = CHANNEL_MEETINGS
-                        meeting_time = message_dict['createdDateTime']
+                        meeting_time = message['createdDateTime']
                         formatted_datetime = dateparser.parse(meeting_time).strftime(
                             "%d %b, %Y at %H:%M:%S")
                         message_data["title"] = f"{channel['title']} - Meeting On "\
@@ -212,14 +212,14 @@ class MSTeamsChannels:
 
                     # Logic to append channel messages for deletion
                     self.local_storage.insert_document_into_doc_id_storage(
-                        ids_list, message_dict["id"],
+                        ids_list, message["id"],
                         constant.CHANNEL_MESSAGES, channel_id, team_id)
-                    for workplace_search_field, microsoft_teams_filed in channel_message_schema.items():
-                        message_data[workplace_search_field] = message_dict[microsoft_teams_filed]
+                    for workplace_search_field, microsoft_teams_field in channel_message_schema.items():
+                        message_data[workplace_search_field] = message[microsoft_teams_field]
                     if self.is_permission_sync_enabled:
                         message_data["_allow_permissions"] = [team_id]
                     replies_data = self.get_message_replies(
-                        team_id, channel_id, message_dict['id'], start_time, end_time)
+                        team_id, channel_id, message['id'], start_time, end_time)
                     if replies_data:
                         if attachments:
                             message_data["body"] += f"Attachment Replies:\n{replies_data}"
