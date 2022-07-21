@@ -131,9 +131,10 @@ class MSTeamsChannels:
             documents_with_teams.append(channels_by_team)
         return documents_with_teams, documents
 
-    def get_channel_messages(self, channels, ids_list, start_time, end_time):
+    def get_channel_messages(self, team_channels_list, ids_list, start_time, end_time):
         """ Fetches all the channel messages from the Microsoft Teams
-            :param channels: All channels from Microsoft Teams
+            :param team_channels_list: List of dictionaries containing team_id as a key and
+                channels of that team as a value
             :param ids_list: Shared storage for storing the document ids
             :param start_time: Starting time for fetching data
             :param end_time: Ending time for fetching data
@@ -143,8 +144,8 @@ class MSTeamsChannels:
         self.logger.debug(
             f"Fetching channel messages for the interval of start time: {start_time} and end time: {end_time}.")
         documents = []
-        for each in channels:
-            for team_id, channel_list in each.items():
+        for team_channel_map in team_channels_list:
+            for team_id, channel_list in team_channel_map.items():
                 for channel in channel_list:
                     channel_id = channel["id"]
                     channel_name = channel["title"]
@@ -275,7 +276,7 @@ class MSTeamsChannels:
         )
 
         if not parsed_response:
-            return None
+            return ""
 
         for reply in parsed_response:
             reply_content = html_to_text(self.logger, reply["body"]["content"])
