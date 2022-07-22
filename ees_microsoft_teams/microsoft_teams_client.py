@@ -5,8 +5,6 @@
 #
 """This module queries Microsoft Teams Graph API and returns the parsed response.
 """
-import pandas
-
 from . import constant
 from .microsoft_teams_requests import (
     MSTeamsRequests,
@@ -95,16 +93,14 @@ class MSTeamsClient(MSTeamsRequests):
                 query = self.query_builder.get_query_for_channel_and_chat_messages().strip()
                 url = f"{next_url}{query}"
                 response_json = self.get(url=url, object_type=constant.CHANNEL_MESSAGES)
-                data_frame = pandas.DataFrame(response_json.get("value"))
 
-                if not data_frame.empty:
-                    row = data_frame
-
-                    data_frame.lastModifiedDateTime = pandas.to_datetime(data_frame.lastModifiedDateTime)
-                    filtered_df = row.loc[(data_frame['lastModifiedDateTime'] >= start_time) & (
-                        data_frame['lastModifiedDateTime'] < end_time)]
-                    filter_data = filtered_df.to_dict('records')
-                    response_list["value"].extend(filter_data)
+                # Filter response based on lastModifiedDateTime
+                response_value = response_json.get("value")
+                if response_value:
+                    for message in response_value:
+                        last_modified_date_time = message.get("lastModifiedDateTime")
+                        if start_time <= last_modified_date_time <= end_time:
+                            response_list["value"].append(message)
 
                 next_url = response_json.get("@odata.nextLink")
 
