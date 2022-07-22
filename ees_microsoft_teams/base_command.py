@@ -166,11 +166,13 @@ class BaseCommand:
 
             teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list)
 
+            configuration_objects = self.config.get_value("object_type_to_index")
+
             teams_partition_list = split_documents_into_equal_chunks(
                 teams, thread_count
             )
 
-            self.create_and_execute_jobs(
+            channels = self.create_and_execute_jobs(
                 thread_count,
                 sync_microsoft_teams.fetch_channels,
                 (
@@ -179,6 +181,23 @@ class BaseCommand:
                 ),
                 teams_partition_list,
             )
+
+            channels_partition_list = split_documents_into_equal_chunks(
+                channels, thread_count
+            )
+
+            if "channel_messages" in configuration_objects:
+                self.create_and_execute_jobs(
+                    thread_count,
+                    sync_microsoft_teams.fetch_channel_messages,
+                    (
+                        microsoft_teams_object,
+                        start_time,
+                        end_time,
+                        ids_list
+                    ),
+                    channels_partition_list,
+                )
 
             storage_with_collection["global_keys"] = list(ids_list)
             self.local_storage.update_storage(

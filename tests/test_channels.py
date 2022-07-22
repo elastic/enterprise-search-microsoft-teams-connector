@@ -132,6 +132,127 @@ def test_get_team_members(mock_teams):
 
 
 @pytest.mark.parametrize(
+    "mock_channels",
+    [
+        (
+            {
+                "value": [
+                    {
+                        "id": "1501527482612",
+                        "replyToId": "1501527481624",
+                        "messageType": "message",
+                        "createdDateTime": "2017-07-31T18:58:02.612Z",
+                        "lastModifiedDateTime": "2017-07-31T18:58:02.612Z",
+                        "subject": None,
+                        "summary": None,
+                        "chatId": None,
+                        "eventDetail": None,
+                        "from": {
+                            "application": None,
+                            "user": {
+                                "id": "8b209ac8-08ff-4ef1-896d-3b9fde0bbf04",
+                                "displayName": "Joni Sherman",
+                                "userIdentityType": "aadUser"
+                            }
+                        },
+                        "body": {
+                            "contentType": "html",
+                            "content": "<div>Hi everyone</div>"
+                        },
+                        "channelIdentity": {
+                            "teamId": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
+                            "channelId": "19:d0bba23c2fc8413991125a43a54cc30e@thread.skype"
+                        },
+                        "attachments": [],
+                    }
+                ]
+            }
+        )
+    ],
+)
+def test_get_message_replies(mock_channels):
+    """Test get replies for messages"""
+    team_replies_obj = create_channel_obj()
+    team_replies_obj.client.get = Mock(return_value=mock_channels)
+    target_channel_message_reply = team_replies_obj.get_message_replies(
+        1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z"
+    )
+    assert target_channel_message_reply == "Joni Sherman - Hi everyone"
+
+
+@pytest.mark.parametrize(
+    "mock_channel_messages, channel_schema_field, source_channels",
+    [
+        (
+            {
+                "value": [
+                    {
+                        "id": "1616990171266",
+                        "replyToId": "1616990032035",
+                        "messageType": "message",
+                        "createdDateTime": "2021-03-29T03:56:11.266Z",
+                        "lastModifiedDateTime": "2021-03-29T03:56:11.266Z",
+                        "deletedDateTime": None,
+                        "subject": None,
+                        "summary": None,
+                        "chatId": None,
+                        "webUrl": "https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035",
+                        "eventDetail": None,
+                        "from": {
+                            "application": None,
+                            "device": None,
+                            "user": {
+                                       "id": "8ea0e38b-efb3-4757-924a-5f94061cf8c2",
+                                       "displayName": "Robin Kline",
+                                       "userIdentityType": "aadUser"
+                            }
+                        },
+                        "body": {
+                            "contentType": "text",
+                            "content": "Hello World"
+                        },
+                        "channelIdentity": {
+                            "teamId": "fbe2bf47-16c8-47cf-b4a5-4b9b187c508b",
+                            "channelId": "19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2"
+                        },
+                        "attachments": [],
+                    }
+                ]
+            },
+            {
+                'id': 'id',
+                'url': 'webUrl',
+                'last_updated': 'lastModifiedDateTime',
+                'created_at': 'createdDateTime'
+            },
+            [{
+                "19:09fc54a3141a45d0": [{"title": "dummy", "id": 1, }],
+            }]
+        )
+    ],
+)
+def test_get_channel_messages(mock_channel_messages, channel_schema_field, source_channels):
+    """Test get messages for channels"""
+    team_channel_obj = create_channel_obj()
+    team_channel_obj.client.get = Mock(return_value=mock_channel_messages)
+    team_channel_obj.get_schema_fields = Mock(return_value=channel_schema_field)
+    target_channel_messages = team_channel_obj.get_channel_messages(
+        source_channels, [1, 2], "2021-03-29T03:56:11.26Z", "2021-03-30T03:56:11.2Z"
+    )
+    source_channel_message = [{
+        'type': 'Channel Messages',
+        'title': 'dummy',
+        'body': 'Robin Kline - Hello World\nReplies:\nRobin Kline - Hello World',
+        'id': '1616990171266',
+        'url': 'https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035',
+        'last_updated': '2021-03-29T03:56:11.266Z',
+        'created_at': '2021-03-29T03:56:11.266Z',
+        '_allow_permissions': ['19:09fc54a3141a45d0']
+    }]
+    assert source_channel_message == target_channel_messages
+
+
+@pytest.mark.parametrize(
     "channel_schema, source_teams, source_channels",
     [
         (
@@ -182,3 +303,4 @@ def test_get_team_channels(channel_schema, source_teams, source_channels):
     # Assert
     assert target_teams == source_teams
     assert target_channels == source_channels
+
