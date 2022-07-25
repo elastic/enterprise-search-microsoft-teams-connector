@@ -44,3 +44,16 @@ class SyncMicrosoftTeams:
         if "channels" in self.objects:
             self.queue.append_to_queue(constant.CHANNELS, channel_documents)
         return channels
+
+    def fetch_channel_messages(self, teams_obj, start_time, end_time, ids_list, channels):
+        """Fetches channel messages from Microsoft Teams
+        :param teams_obj: Class object to fetch teams and its objects
+        :param start_time: Start time for fetching channel messages and tabs
+        :param end_time: End time for fetching channel messages and tabs
+        :param ids_list: Document ids list from respective doc id file
+        :param channels: List of channels to fetch channel messages from Microsoft Teams
+        """
+        channel_message_documents = teams_obj.get_channel_messages(
+            channels, ids_list, start_time, end_time
+        )
+        self.queue.append_to_queue(constant.CHANNEL_MESSAGES, channel_message_documents)
