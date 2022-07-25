@@ -25,17 +25,20 @@ CONFIG_FILE = os.path.join(
 
 def settings():
     """This function loads configuration from the file and returns it along with retry_count setting."""
-    configuration = Configuration(file_name=CONFIG_FILE)
+    configuration = Configuration(
+        file_name=CONFIG_FILE
+    )
 
     logger = logging.getLogger("unit_test_channels")
     return configuration, logger
 
 
 def create_channel_obj():
-    """This function create channel object for test."""
+    """This function create channel object for test.
+    """
     configs, logger = settings()
     local_storage = LocalStorage(logger)
-    return MSTeamsChannels("token", logger, configs, local_storage)
+    return MSTeamsChannels('token', logger, configs, local_storage)
 
 
 @pytest.mark.parametrize(
@@ -56,21 +59,19 @@ def create_channel_obj():
                 ]
             },
             {
-                "id": "id",
-                "title": "displayName",
-                "body": "description",
-                "created_at": "createdDateTime",
+                'id': 'id',
+                'title': 'displayName',
+                'body': 'description',
+                'created_at': 'createdDateTime'
             },
-            [
-                {
-                    "type": "Teams",
-                    "id": "45b7d2e7-b882-4a80-ba97-10b7a63b8fa4",
-                    "title": "Golf Assist",
-                    "body": "Self help community for golf",
-                    "_allow_permissions": ["45b7d2e7-b882-4a80-ba97-10b7a63b8fa4"],
-                    "created_at": "2018-12-22T02:21:05Z",
-                }
-            ],
+            [{
+                'type': 'Teams',
+                'id': '45b7d2e7-b882-4a80-ba97-10b7a63b8fa4',
+                'title': 'Golf Assist',
+                'body': 'Self help community for golf',
+                '_allow_permissions': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4'],
+                'created_at': '2018-12-22T02:21:05Z'
+            }],
         )
     ],
 )
@@ -102,14 +103,16 @@ def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
                         "description": "Self help community for golf",
                         "displayName": "Golf Assist",
                         "expirationDateTime": None,
-                        "groupTypes": ["Unified"],
+                        "groupTypes": [
+                            "Unified"
+                        ],
                         "isAssignableToRole": "null",
                         "mail": "golfassist@contoso.com",
                         "mailNickname": "golfassist",
                         "preferredDataLocation": "CAN",
                         "renewedDateTime": "2018-12-22T02:21:05Z",
                     },
-                ],
+                ]
             }
         )
     ],
@@ -124,7 +127,7 @@ def test_get_team_members(mock_teams):
     target_teams = team_member_obj.get_team_members()
 
     # Assert
-    assert target_teams == {"Golf Assist": ["45b7d2e7-b882-4a80-ba97-10b7a63b8fa4"]}
+    assert target_teams == {'Golf Assist': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4']}
 
 
 @pytest.mark.parametrize(
@@ -283,38 +286,32 @@ def test_get_channel_messages(mock_channel_messages, mock_channel_message_docume
     [
         (
             {
-                "id": "id",
-                "url": "webUrl",
-                "title": "displayName",
-                "body": "description",
-                "created_at": "createdDateTime",
+                'id': 'id',
+                'url': 'webUrl',
+                'title': 'displayName',
+                'body': 'description',
+                'created_at': 'createdDateTime'
             },
-            [
-                {
-                    1: [
-                        {
-                            "type": "Channels",
-                            "id": "1",
-                            "url": "https://teams.microsoft.com/l/",
-                            "title": "General",
-                            "body": "description",
-                            "_allow_permissions": [1],
-                            "created_at": "2017-07-31T18:56:16.533Z",
-                        }
-                    ]
-                }
-            ],
-            [
-                {
-                    "type": "Channels",
-                    "id": "1",
-                    "url": "https://teams.microsoft.com/l/",
-                    "title": "General",
-                    "_allow_permissions": [1],
-                    "body": "description",
-                    "created_at": "2017-07-31T18:56:16.533Z",
-                }
-            ],
+            [{
+                1: [{
+                    'type': 'Channels',
+                    'id': '1',
+                    'url': 'https://teams.microsoft.com/l/',
+                    'title': 'General',
+                    'body': 'description',
+                    '_allow_permissions': [1],
+                    'created_at': '2017-07-31T18:56:16.533Z'
+                }]
+            }],
+            [{
+                'type': 'Channels',
+                'id': '1',
+                'url': 'https://teams.microsoft.com/l/',
+                'title': 'General',
+                '_allow_permissions': [1],
+                'body': 'description',
+                'created_at': '2017-07-31T18:56:16.533Z'
+            }]
         )
     ],
 )
