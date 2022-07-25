@@ -25,20 +25,17 @@ CONFIG_FILE = os.path.join(
 
 def settings():
     """This function loads configuration from the file and returns it along with retry_count setting."""
-    configuration = Configuration(
-        file_name=CONFIG_FILE
-    )
+    configuration = Configuration(file_name=CONFIG_FILE)
 
     logger = logging.getLogger("unit_test_channels")
     return configuration, logger
 
 
 def create_channel_obj():
-    """This function create channel object for test.
-    """
+    """This function create channel object for test."""
     configs, logger = settings()
     local_storage = LocalStorage(logger)
-    return MSTeamsChannels('token', logger, configs, local_storage)
+    return MSTeamsChannels("token", logger, configs, local_storage)
 
 
 @pytest.mark.parametrize(
@@ -59,19 +56,21 @@ def create_channel_obj():
                 ]
             },
             {
-                'id': 'id',
-                'title': 'displayName',
-                'body': 'description',
-                'created_at': 'createdDateTime'
+                "id": "id",
+                "title": "displayName",
+                "body": "description",
+                "created_at": "createdDateTime",
             },
-            [{
-                'type': 'Teams',
-                'id': '45b7d2e7-b882-4a80-ba97-10b7a63b8fa4',
-                'title': 'Golf Assist',
-                'body': 'Self help community for golf',
-                '_allow_permissions': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4'],
-                'created_at': '2018-12-22T02:21:05Z'
-            }],
+            [
+                {
+                    "type": "Teams",
+                    "id": "45b7d2e7-b882-4a80-ba97-10b7a63b8fa4",
+                    "title": "Golf Assist",
+                    "body": "Self help community for golf",
+                    "_allow_permissions": ["45b7d2e7-b882-4a80-ba97-10b7a63b8fa4"],
+                    "created_at": "2018-12-22T02:21:05Z",
+                }
+            ],
         )
     ],
 )
@@ -103,17 +102,14 @@ def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
                         "description": "Self help community for golf",
                         "displayName": "Golf Assist",
                         "expirationDateTime": None,
-                        "groupTypes": [
-                            "Unified"
-                        ],
+                        "groupTypes": ["Unified"],
                         "isAssignableToRole": "null",
                         "mail": "golfassist@contoso.com",
                         "mailNickname": "golfassist",
                         "preferredDataLocation": "CAN",
-
                         "renewedDateTime": "2018-12-22T02:21:05Z",
                     },
-                ]
+                ],
             }
         )
     ],
@@ -128,7 +124,7 @@ def test_get_team_members(mock_teams):
     target_teams = team_member_obj.get_team_members()
 
     # Assert
-    assert target_teams == {'Golf Assist': ['45b7d2e7-b882-4a80-ba97-10b7a63b8fa4']}
+    assert target_teams == {"Golf Assist": ["45b7d2e7-b882-4a80-ba97-10b7a63b8fa4"]}
 
 
 @pytest.mark.parametrize(
@@ -138,32 +134,42 @@ def test_get_team_members(mock_teams):
             {
                 "value": [
                     {
-                        "id": "1501527482612",
-                        "replyToId": "1501527481624",
+                        "id": "1658749655787",
+                        "replyToId": "1658486708423",
+                        "etag": "1658749655787",
                         "messageType": "message",
-                        "createdDateTime": "2017-07-31T18:58:02.612Z",
-                        "lastModifiedDateTime": "2017-07-31T18:58:02.612Z",
+                        "createdDateTime": "2022-07-25T11: 47: 35.787Z",
+                        "lastModifiedDateTime": "2022-07-25T11: 47: 35.787Z",
+                        "lastEditedDateTime": None,
+                        "deletedDateTime": None,
                         "subject": None,
                         "summary": None,
                         "chatId": None,
+                        "importance": "normal",
+                        "locale": "en-us",
+                        "webUrl": "https: //teams.microsoft.com/l/message/19%3A751b4b0aa2ac4fba9c21ea3c69af381a%40thread.tacv2/1658749655787?groupId=feffa8d9-33b9-42ac-87d6-b6a512472e27&tenantId=5186e740-5d4d-452f-b9c1-c8131cdefbe9&createdTime=1658749655787&parentMessageId=1658486708423",
+                        "policyViolation": None,
                         "eventDetail": None,
                         "from": {
                             "application": None,
+                            "device": None,
                             "user": {
-                                "id": "8b209ac8-08ff-4ef1-896d-3b9fde0bbf04",
+                                "id": "1cd554ab-469a-4d74-93c7-33a05ea12342",
                                 "displayName": "Joni Sherman",
                                 "userIdentityType": "aadUser"
                             }
                         },
                         "body": {
-                            "contentType": "html",
-                            "content": "<div>Hi everyone</div>"
+                            "contentType": "text",
+                            "content": "Hi everyone"
                         },
                         "channelIdentity": {
-                            "teamId": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
-                            "channelId": "19:d0bba23c2fc8413991125a43a54cc30e@thread.skype"
+                            "teamId": "feffa8d9-33b9-42ac-87d6-b6a512472e27",
+                            "channelId": "19:751b4b0aa2ac4fba9c21ea3c69af381a@thread.tacv2"
                         },
                         "attachments": [],
+                        "mentions": [],
+                        "reactions": []
                     }
                 ]
             }
@@ -173,82 +179,102 @@ def test_get_team_members(mock_teams):
 def test_get_message_replies(mock_channels):
     """Test get replies for messages"""
     team_replies_obj = create_channel_obj()
-    team_replies_obj.client.get = Mock(return_value=mock_channels)
+    team_replies_obj.client.get_channel_messages = Mock(return_value=mock_channels)
     target_channel_message_reply = team_replies_obj.get_message_replies(
         1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z"
     )
+    print(target_channel_message_reply)
     assert target_channel_message_reply == "Joni Sherman - Hi everyone"
 
 
 @pytest.mark.parametrize(
-    "mock_channel_messages, channel_schema_field, source_channels",
+    "mock_channel_messages, mock_channel_message_documents, source_channels",
     [
         (
             {
                 "value": [
                     {
                         "id": "1616990171266",
-                        "replyToId": "1616990032035",
-                        "messageType": "message",
+                        "replyToId": "None",
+                        "etag": "1656484019648",
+                        "messageType": "unknownFutureValue",
                         "createdDateTime": "2021-03-29T03:56:11.266Z",
                         "lastModifiedDateTime": "2021-03-29T03:56:11.266Z",
-                        "deletedDateTime": None,
-                        "subject": None,
-                        "summary": None,
-                        "chatId": None,
+                        "lastEditedDateTime": "None",
+                        "deletedDateTime": "None",
+                        "subject": "dummy",
+                        "summary": "None",
+                        "chatId": "None",
+                        "importance": "normal",
+                        "locale": "en-us",
                         "webUrl": "https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035",
-                        "eventDetail": None,
-                        "from": {
-                            "application": None,
-                            "device": None,
-                            "user": {
-                                       "id": "8ea0e38b-efb3-4757-924a-5f94061cf8c2",
-                                       "displayName": "Robin Kline",
-                                       "userIdentityType": "aadUser"
-                            }
-                        },
+                        "from": "None",
+                        "policyViolation": "None",
                         "body": {
                             "contentType": "text",
-                            "content": "Hello World"
+                            "content": "Robin Kline - Hello World\nReplies:\nRobin Kline - Hello World",
                         },
                         "channelIdentity": {
-                            "teamId": "fbe2bf47-16c8-47cf-b4a5-4b9b187c508b",
-                            "channelId": "19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2"
+                            "teamId": "6269510a-24f6-422a-807c-2a1b3b29a2ff",
+                            "channelId": "19:AHjix5AhJlpjjapFakpEbja0PGNlvPnjacGN-9EqzXs1@thread.tacv2",
                         },
                         "attachments": [],
+                        "mentions": [],
+                        "reactions": [],
+                        "eventDetail": {
+                            "@odata.type": "#microsoft.graph.channelAddedEventMessageDetail",
+                            "channelId": "19:c11ff4abd0454db282f46cde24ad5848@thread.tacv2",
+                            "channelDisplayName": "TestTeam-8_Channel-15",
+                            "initiator": {
+                                "application": "None",
+                                "device": "None",
+                                "user": {
+                                    "id": "1cd554ab-469a-4d74-93c7-33a05ea12342",
+                                    "displayName": "None",
+                                    "userIdentityType": "aadUser",
+                                },
+                            },
+                        },
                     }
                 ]
             },
-            {
-                'id': 'id',
-                'url': 'webUrl',
-                'last_updated': 'lastModifiedDateTime',
-                'created_at': 'createdDateTime'
-            },
+            [{
+                "type": "Channel Messages",
+                "title": "dummy",
+                "body": "Robin Kline - Hello World\nReplies:\nRobin Kline - Hello World",
+                "id": "1616990171266",
+                "url": "https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035",
+                "last_updated": "2021-03-29T03:56:11.266Z",
+                "created_at": "2021-03-29T03:56:11.266Z",
+            }],
             [{
                 "19:09fc54a3141a45d0": [{"title": "dummy", "id": 1, }],
             }]
         )
     ],
 )
-def test_get_channel_messages(mock_channel_messages, channel_schema_field, source_channels):
+def test_get_channel_messages(mock_channel_messages, mock_channel_message_documents, source_channels):
     """Test get messages for channels"""
     team_channel_obj = create_channel_obj()
-    team_channel_obj.client.get = Mock(return_value=mock_channel_messages)
-    team_channel_obj.get_schema_fields = Mock(return_value=channel_schema_field)
+    team_channel_obj.client.get_channel_messages = Mock(
+        return_value=mock_channel_messages
+    )
+    team_channel_obj.get_channel_messages_documents = Mock(return_value=mock_channel_message_documents)
     target_channel_messages = team_channel_obj.get_channel_messages(
         source_channels, [1, 2], "2021-03-29T03:56:11.26Z", "2021-03-30T03:56:11.2Z"
     )
-    source_channel_message = [{
-        'type': 'Channel Messages',
-        'title': 'dummy',
-        'body': 'Robin Kline - Hello World\nReplies:\nRobin Kline - Hello World',
-        'id': '1616990171266',
-        'url': 'https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035',
-        'last_updated': '2021-03-29T03:56:11.266Z',
-        'created_at': '2021-03-29T03:56:11.266Z',
-        '_allow_permissions': ['19:09fc54a3141a45d0']
-    }]
+    source_channel_message = [
+        {
+            "type": "Channel Messages",
+            "title": "dummy",
+            "body": "Robin Kline - Hello World\nReplies:\nRobin Kline - Hello World",
+            "id": "1616990171266",
+            "url": "https://teams.microsoft.com/l/message/11616990171266&parentMessageId=1616990032035",
+            "last_updated": "2021-03-29T03:56:11.266Z",
+            "created_at": "2021-03-29T03:56:11.266Z",
+        }
+    ]
+    print(target_channel_messages)
     assert source_channel_message == target_channel_messages
 
 
@@ -257,32 +283,38 @@ def test_get_channel_messages(mock_channel_messages, channel_schema_field, sourc
     [
         (
             {
-                'id': 'id',
-                'url': 'webUrl',
-                'title': 'displayName',
-                'body': 'description',
-                'created_at': 'createdDateTime'
+                "id": "id",
+                "url": "webUrl",
+                "title": "displayName",
+                "body": "description",
+                "created_at": "createdDateTime",
             },
-            [{
-                1: [{
-                    'type': 'Channels',
-                    'id': '1',
-                    'url': 'https://teams.microsoft.com/l/',
-                    'title': 'General',
-                    'body': 'description',
-                    '_allow_permissions': [1],
-                    'created_at': '2017-07-31T18:56:16.533Z'
-                }]
-            }],
-            [{
-                'type': 'Channels',
-                'id': '1',
-                'url': 'https://teams.microsoft.com/l/',
-                'title': 'General',
-                '_allow_permissions': [1],
-                'body': 'description',
-                'created_at': '2017-07-31T18:56:16.533Z'
-            }]
+            [
+                {
+                    1: [
+                        {
+                            "type": "Channels",
+                            "id": "1",
+                            "url": "https://teams.microsoft.com/l/",
+                            "title": "General",
+                            "body": "description",
+                            "_allow_permissions": [1],
+                            "created_at": "2017-07-31T18:56:16.533Z",
+                        }
+                    ]
+                }
+            ],
+            [
+                {
+                    "type": "Channels",
+                    "id": "1",
+                    "url": "https://teams.microsoft.com/l/",
+                    "title": "General",
+                    "_allow_permissions": [1],
+                    "body": "description",
+                    "created_at": "2017-07-31T18:56:16.533Z",
+                }
+            ],
         )
     ],
 )
@@ -303,4 +335,3 @@ def test_get_team_channels(channel_schema, source_teams, source_channels):
     # Assert
     assert target_teams == source_teams
     assert target_channels == source_channels
-
