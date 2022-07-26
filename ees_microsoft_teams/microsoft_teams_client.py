@@ -122,8 +122,7 @@ class MSTeamsClient(MSTeamsRequests):
         return parsed_response
 
     def get_channeL_tabs(self, next_url, start_time, end_time, channel_name):
-        """ Get channel tabs from the Microsoft Teams with the support of pagination and
-            filtration.
+        """ Get channel tabs from the Microsoft Teams with the support of filtration.
             :param next_url: URL to invoke Graph API call
             :param start_time: Starting time to fetch channel tabs
             :param end_time: Ending time to fetch channel tabs
