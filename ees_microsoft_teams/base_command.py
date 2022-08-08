@@ -25,7 +25,6 @@ from .configuration import Configuration
 from .local_storage import LocalStorage
 from .microsoft_teams_channels import MSTeamsChannels
 from .msal_access_token import MSALAccessToken
-from .utils import split_documents_into_equal_chunks
 
 
 class BaseCommand:
@@ -121,95 +120,4 @@ class BaseCommand:
         """Get the object for fetching the teams and its children"""
         return MSTeamsChannels(
             access_token, self.logger, self.config, self.local_storage
-        )
-
-    def create_jobs_for_teams(
-        self,
-        indexing_type,
-        sync_microsoft_teams,
-        thread_count,
-        start_time,
-        end_time,
-        queue,
-    ):
-        """Creates jobs for fetching the teams and its children objects
-        :param indexing_type: The type of the indexing i.e. Full or Incremental
-        :param sync_microsoft_teams: Object for fetching the Microsoft Teams object
-        :param thread_count: Thread count to make partitions
-        :param start_time: Start time for fetching the data
-        :param end_time: End time for fetching the data
-        :param queue: Shared queue for storing the data
-        """
-        allowed_objects = [
-            "teams",
-            "channels",
-            "channel_messages",
-            "channel_tabs",
-            "channel_documents",
-        ]
-        if not any(teams_object in self.config.get_value("object_type_to_index") for teams_object in allowed_objects):
-            return
-
-        storage_with_collection = self.local_storage.get_documents_from_doc_id_storage(
-            "teams"
-        )
-        ids_list = storage_with_collection.get("global_keys")
-
-        self.logger.debug("Started fetching the teams and its objects data...")
-        microsoft_teams_object = self.microsoft_team_channel_object(
-            self.get_access_token()
-        )
-        try:
-            if self.config.get_value("enable_document_permission"):
-                user_permissions = microsoft_teams_object.get_team_members()
-                sync_microsoft_teams.sync_permissions(user_permissions)
-
-            teams = sync_microsoft_teams.fetch_teams(microsoft_teams_object, ids_list)
-
-            configuration_objects = self.config.get_value("object_type_to_index")
-
-            teams_partition_list = split_documents_into_equal_chunks(
-                teams, thread_count
-            )
-
-            channels = self.create_and_execute_jobs(
-                thread_count,
-                sync_microsoft_teams.fetch_channels,
-                (
-                    microsoft_teams_object,
-                    ids_list
-                ),
-                teams_partition_list,
-            )
-
-            channels_partition_list = split_documents_into_equal_chunks(
-                channels, thread_count
-            )
-
-            if "channel_messages" in configuration_objects:
-                self.create_and_execute_jobs(
-                    thread_count,
-                    sync_microsoft_teams.fetch_channel_messages,
-                    (
-                        microsoft_teams_object,
-                        start_time,
-                        end_time,
-                        ids_list
-                    ),
-                    channels_partition_list,
-                )
-
-            storage_with_collection["global_keys"] = list(ids_list)
-            self.local_storage.update_storage(
-                storage_with_collection, "teams"
-            )
-
-            self.logger.debug("Saving the checkpoint for Teams and its objects")
-            queue.put_checkpoint("teams", end_time, indexing_type)
-        except Exception as exception:
-            self.logger.exception(
-                f"Error while fetching the teams or it's objects data. Error: {exception}"
-            )
-        self.logger.info(
-            "Completed fetching of teams and it's objects data to the Workplace Search"
         )
