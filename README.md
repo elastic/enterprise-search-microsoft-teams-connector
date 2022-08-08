@@ -9,8 +9,6 @@ Use this _Elastic Enterprise Search Microsoft Teams connector package_ to deploy
 ⚠️ _This connector package is a **beta** feature._
 Beta features are subject to change and are not covered by the support SLA of generally available (GA) features. Elastic plans to promote this feature to GA in a future release.
 
-Note: This version of the Connector is not supported for Elastic Enterprise Search versions 8.0 and above
-
 ℹ️ _This connector package requires a compatible Elastic subscription level._
 Refer to the Elastic subscriptions pages for [Elastic Cloud](https://www.elastic.co/subscriptions/cloud) and [self-managed](https://www.elastic.co/subscriptions) deployments.
 
@@ -79,6 +77,8 @@ Collect the information that is required to connect to Microsoft Teams:
 
 Later, you will [configure the connector](#configure-the-connector) with these values.
 
+ℹ️ The connector uses [msal](https://msal-python.readthedocs.io/en/latest/) module for generating the access token to fetch the documents from Microsoft Teams.
+
 Some connector features require additional details. Review the following documentation if you plan to use these features:
 
 - [Customize extraction and syncing](#customize-extraction-and-syncing)
@@ -111,9 +111,11 @@ Create a content source within Kibana:
 1. Navigate to **Enterprise Search** → **Workplace Search** → **Sources** → **Add Source** → **Microsoft Teams**.
 2. Choose **Configure Microsoft Teams**.
 
+For more details please refer [Elastic Documentation for creating a custom content source](https://www.elastic.co/guide/en/workplace-search/current/workplace-search-custom-api-sources.html#create-custom-source).
+
 Record the ID of the new content source. This value is labeled *Source Identifier* within Kibana. Later, you will [configure the connector](#configure-the-connector) with this value.
 
-**Alternatively**, if you have already deployed a Microsoft Teams connector, you can use the connector’s `bootstrap` command to create the content source. See [`bootstrap` command](#bootstrap-command).
+**Alternatively**, you can use the connector's `bootstrap` command to create the content source. See [`bootstrap` command](#bootstrap-command).
 
 ### Choose connector infrastructure and satisfy dependencies
 
@@ -152,7 +154,7 @@ Next, ensure the `ees_microsoft_teams` executable is on your `PATH`. For example
 export PATH=/Users/shaybanon/Library/Python/3.8/bin:$PATH
 ```
 
-The following table provides the installation location for each operating system:
+The following table provides the installation location for each operating system (note Python version 3.8):
 
 | Operating system | Installation location                                        |
 | ---------------- | ------------------------------------------------------------ |
@@ -162,7 +164,7 @@ The following table provides the installation location for each operating system
 
 ### Configure the connector
 
-You must configure the connector to provide the necessary information to communicate with each service. You can provide additional configuration to customize the connector for your needs.
+You must configure the connector to provide the information necessary to communicate with each service. You can provide additional configuration to customize the connector for your needs.
 
 Create a [YAML](https://yaml.org/) configuration file at any pathname. Later, you will include the [`-c` option](#-c-option) when running [commands](#command-line-interface-cli) to specify the pathname to this configuration file.
 
@@ -219,9 +221,11 @@ Configure the log level using the [`log_level` setting](#log_level).
 
 Use a job scheduler, such as `cron`, to run the various [sync commands](#command-line-interface-cli) as recurring syncs.
 
-The following is an example crontab file:
+The following is an example crontab file in linux:	
 
-```crontab
+```crontab	
+PATH=/home/<user_name>/.local/bin
+
 0 */2 * * * ees_microsoft_teams -c ~/config.yml incremental-sync >>~/incremental-sync.log 2>&1
 0 0 */2 * * ees_microsoft_teams -c ~/config.yml full-sync >>~/full-sync.log 2>&1
 0 * * * * ees_microsoft_teams -c ~/config.yml deletion-sync >>~/deletion-sync.log 2>&1
@@ -239,8 +243,10 @@ Using flock ensures the next scheduled cron runs only after the current one has 
 Let's consider an example of running incremental-sync as a cron job with flock:
 
 ```crontab
-0 */2 * * * /usr/bin/flock -w 0 /var/cron.lock ees_microsoft_teams -c ~/config.yml incremental-sync >>~/incremental-sync.log 2>&1
+0 */2 * * * /usr/bin/flock -w 0 /var/cron_indexing.lock ees_microsoft_teams -c ~/config.yml incremental-sync >>~/incremental-sync.log 2>&1
 ```
+
+Note: If the flock is added for multiple commands in crontab, make sure you mention different lock names(eg: /var/cron_indexing.lock in the above example) for each job else the execution of one command will prevent other command to execute.
 
 ## Troubleshooting
 
@@ -295,7 +301,7 @@ After you’ve set up your first connection, you may want to further customize t
 
 By default, each connection syncs all [supported Microsoft Teams data](#data-extraction-and-syncing) across all Microsoft Teams applications.
 
-You can also customize which objects are synced, and which fields are included and excluded for each object. [Configure](#configure-the-connector) the setting [`objects`](#objects).
+You can also customize which objects are synced, and which fields are included and excluded for each object. [Configure](#configure-the-connector) the setting [`object_type_to_index`](#object_type_to_index).
 
 Finally, you can set custom timestamps to control which objects are synced, based on their created or modified timestamps. [Configure](#configure-the-connector) the following settings:
 
@@ -551,12 +557,12 @@ Whether the connector should sync [document-level permissions (DLP)](#use-docume
 enable_document_permission: Yes
 ```
 
-#### `objects`
+#### `object_type_to_index`
 
 Specifies which Microsoft Teams objects to sync to Enterprise Search, and for each object, which fields to include and exclude. When the include/exclude fields are empty, all fields are synced.
 
 ```yaml
-objects:
+object_type_to_index:
   teams:
     include_fields:
     exclude_fields:
@@ -569,7 +575,7 @@ objects:
   channel_documents:
     include_fields:
     exclude_fields:
-  channel_tas:
+  channel_tabs:
     include_fields:
     exclude_fields:
   user_chats:
@@ -583,6 +589,7 @@ objects:
 #### `start_time`
 
 A UTC timestamp the connector uses to determine which objects to extract and sync from Microsoft Teams. Determines the *starting* point for a [full sync](#full-sync).
+Supports the following time format `YYYY-MM-DDTHH:MM:SSZ`
 
 ```yaml
 start_time: 2022-04-01T04:44:16Z
@@ -591,10 +598,13 @@ start_time: 2022-04-01T04:44:16Z
 #### `end_time`
 
 A UTC timestamp the connector uses to determine which objects to extract and sync from Microsoft Teams. Determines the *stopping* point for a [full sync](#full-sync).
+Supports the following time format `YYYY-MM-DDTHH:MM:SSZ`
 
 ```yaml
 end_time: 2022-04-01T04:44:16Z
 ```
+
+By default it is set to current execution time.
 
 #### `log_level`
 
@@ -609,6 +619,8 @@ The level or severity that determines the threshold for [logging](#log-errors-an
 log_level: INFO
 ```
 
+By default, it is set to `INFO`.
+
 #### `retry_count`
 
 The number of retries to perform when there is a server error. The connector applies an exponential back-off algorithm to retries.
@@ -617,9 +629,11 @@ The number of retries to perform when there is a server error. The connector app
 retry_count: 3
 ```
 
+By default, it is set to `3`.
+
 #### `ms_teams_sync_thread_count`
 
-The number of threads the connector will run parallelly for fetching documents from the Microsoft Teams. By default, the connector uses 5 threads
+The number of threads the connector will run in parallel when fetching documents from the Microsoft Teams. By default, the connector uses 5 threads.
 
 ```yaml
 ms_teams_sync_thread_count: 5
@@ -627,7 +641,7 @@ ms_teams_sync_thread_count: 5
 
 #### `enterprise_search_sync_thread_count`
 
-The number of threads the connector will run parallelly for indexing documents to the Enterprise Search instance. By default, the connector uses 5 threads
+The number of threads the connector will run in parallel when indexing documents into the Enterprise Search instance. By default, the connector uses 5 threads.
 
 ```yaml
 enterprise_search_sync_thread_count: 5
