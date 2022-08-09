@@ -149,7 +149,8 @@ class MSTeamsClient(MSTeamsRequests):
                     next_url = None
 
             except Exception as unknown_exception:
-                self.logger.exception(f"Error while fetching the Microsoft Team. Error: {unknown_exception}")
+                self.logger.exception("Error while fetching the channel tabs from Microsoft Team. "
+                                      f"Error: {unknown_exception}")
 
         parsed_response = get_data_from_http_response(
             logger=self.logger,
