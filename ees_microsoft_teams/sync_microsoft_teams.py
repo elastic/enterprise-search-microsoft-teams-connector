@@ -57,3 +57,16 @@ class SyncMicrosoftTeams:
             channels, ids_list, start_time, end_time
         )
         self.queue.append_to_queue(constant.CHANNEL_MESSAGES, channel_message_documents)
+
+    def fetch_channel_documents(self, teams_obj, start_time, end_time, ids_list, teams):
+        """Fetches channel documents from Microsoft Teams
+        :param teams: List of teams to fetch channels from Microsoft Teams
+        :param teams_obj: Class object to fetch teams and its objects
+        :param start_time: Start time for fetching channel documents
+        :param end_time: End time for fetching channel documents
+        :param ids_list: Document ids list from respective doc id file
+        """
+        channel_documents = teams_obj.get_channel_documents(
+            teams, ids_list, start_time, end_time
+        )
+        self.queue.append_to_queue(constant.CHANNEL_DOCUMENTS, channel_documents)

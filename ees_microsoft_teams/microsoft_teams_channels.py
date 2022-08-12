@@ -6,10 +6,14 @@
 """This module collects all the teams and Channels detail from Microsoft Teams.
 """
 import dateparser
+import requests
+from iteration_utilities import unique_everseen
+from requests.exceptions import RequestException
+from tika.tika import TikaException
 
 from . import constant
 from .microsoft_teams_client import MSTeamsClient
-from .utils import (get_data_from_http_response, get_schema_fields,
+from .utils import (get_data_from_http_response, get_schema_fields, extract_api_response,
                     html_to_text, url_decode)
 
 MEETING_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -286,3 +290,158 @@ class MSTeamsChannels:
 
         message_body = "\n".join(reply for reply in replies_list)
         return message_body
+
+    def get_channel_documents(self, teams, ids_list, start_time, end_time):
+        """ Fetches all the channel documents from the Microsoft Teams
+            :param teams: List of dictionaries containing the team details
+            :param ids_list: Shared storage for storing the document ids
+            :param start_time: Starting time for fetching data
+            :param end_time: Ending time for fetching data
+            Returns:
+                documents: Documents to be indexed in Workplace Search
+        """
+        documents = []
+        self.logger.debug(
+            f"Fetching channel documents for the interval of start time: {start_time} and end time: {end_time}.")
+
+        for team in teams:
+            team_id = team["id"]
+            team_name = team["title"]
+            self.logger.info(f"Fetching drives for team: {team_name}")
+
+            drive_response = self.client.get_channel_documents(
+                next_url=f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives", start_time="",
+                end_time="", object_type=constant.DRIVE)
+
+            drive_response_data = get_data_from_http_response(
+                self.logger, drive_response,
+                f"Could not fetch channels document drives for team:{team_id} Error: {drive_response}",
+                f"Error while fetching channels document drives for team: {team_id} Error: {drive_response}")
+
+            if drive_response_data:
+                for drive in drive_response_data:
+                    drive_id = drive["id"]
+                    self.logger.info(f"Fetching root for drive: {drive['name']}")
+
+                    # Logic to append team drives ids for deletion
+                    self.local_storage.insert_document_into_doc_id_storage(ids_list, drive_id, constant.CHANNEL_DRIVE,
+                                                                           team_id, "")
+                    root_response = self.client.get(
+                        url=f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives/{drive_id}/root",
+                        object_type=constant.ROOT)
+
+                    if root_response:
+                        root_id = root_response["id"]
+                        self.logger.info(f"Fetching channel drives for root: {root_response['name']}")
+
+                        # Logic to append drive roots ids for deletion
+                        self.local_storage.insert_document_into_doc_id_storage(
+                            ids_list, root_id, constant.CHANNEL_ROOT, drive_id, team_id)
+
+                        children_response = self.client.get_channel_documents(
+                            next_url=f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives/{drive_id}/items/"
+                                     f"{root_id}/children",
+                            start_time="", end_time="", object_type=constant.DRIVE)
+
+                        children_response_data = get_data_from_http_response(
+                            self.logger, children_response,
+                            f"Could not fetch channels document drive items for team:{team_id} "
+                            f"Error: {children_response}",
+                            f"Error while fetching channels document drive items for team: {team_id} "
+                            f"Error: {children_response}")
+
+                        if children_response_data:
+                            document_schema = get_schema_fields("channel_documents", self.object_type_to_index)
+
+                            for child in children_response_data:
+                                # Logic to append drive item ids for deletion
+                                self.local_storage.insert_document_into_doc_id_storage(
+                                    ids_list, child["id"], constant.CHANNEL_DRIVE_ITEM, root_id, drive_id)
+
+                                folder_documents = self.get_folder_documents(
+                                    team_id, drive_id, child["id"],
+                                    document_schema, [],
+                                    ids_list, child["id"],
+                                    start_time, end_time, team_name)
+
+                                if folder_documents:
+                                    documents.extend(folder_documents)
+        return list(unique_everseen(documents))
+
+    def get_folder_documents(
+            self, team_id, drive_id, document_id, schema, documents, ids_list, parent_file_id, start_time,
+            end_time, team_name):
+        """ Fetches the files from the folder recursively
+            :param team_id: Team id
+            :param drive_id: Drive id
+            :param document_id: Folder id
+            :param schema: Schema for workplace fields and Microsoft Teams fields
+            :param documents: Document id storage
+            :param ids_list: Shared storage for storing the document ids
+            :param parent_file_id: Parent document id of current file/folder
+            :param start_time: Starting time for fetching data
+            :param end_time: Ending time for fetching data
+            :param team_name: Team name for log message
+            Returns:
+                documents: list of documents containing the channel documents details
+        """
+        folder_files_url = f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives/{drive_id}/items/{document_id}/children"
+        folder_files_response = self.client.get_channel_documents(
+            next_url=folder_files_url, start_time=start_time, end_time=end_time,
+            object_type=constant.CHANNEL_DOCUMENTS, is_documents=True, team_name=team_name)
+
+        if not folder_files_response:
+            return documents
+
+        for document in folder_files_response:
+            # Logic to append recursive files/folders for deletion
+            self.local_storage.insert_document_into_doc_id_storage(
+                ids_list, document["id"], constant.CHANNEL_DOCUMENTS, document_id, parent_file_id)
+            document_data = {"type": constant.CHANNEL_DOCUMENTS}
+
+            if document.get("folder") and type(document.get("folder")) != float:
+                self.get_folder_documents(
+                    team_id, drive_id, document["id"],
+                    schema, documents, ids_list, document_id, start_time, end_time, team_name)
+
+            for workplace_search_field, microsoft_teams_filed in schema.items():
+                document_data[workplace_search_field] = document[microsoft_teams_filed]
+
+            document_data["_allow_permissions"] = []
+            if self.is_permission_sync_enabled:
+                document_data["_allow_permissions"] = [team_id]
+
+            document_data["body"] = self.get_attachment_content(document)
+            documents.append(document_data)
+        return documents
+
+    def get_attachment_content(self, document):
+        """ This function is used to fetch and extract the channel document from download URL
+            :param document: document that contains the details of channel document
+            Returns:
+                attachment_content: content of the attachment
+        """
+        is_file = document.get("file", {})
+
+        if is_file and type(is_file) != float:
+            mimetype = is_file.get("mimeType")
+
+            if mimetype not in constant.MIMETYPES:
+                download_url = document.get("@microsoft.graph.downloadUrl")
+                try:
+                    attachment_content_response = requests.get(download_url)
+                    if attachment_content_response:
+                        attachment_content = None
+                        try:
+                            self.logger.info(f"Extracting the contents of {document.get('name')}.")
+                            attachment_content = extract_api_response(attachment_content_response.content)
+                        except TikaException as exception:
+                            self.logger.exception(
+                                f"Error while extracting contents of {document['name']} via Tika Parser. Error: "
+                                f"{exception}")
+                        return attachment_content
+                except RequestException as exception:
+                    self.logger.exception(
+                        f"Error while downloading the channel document from download URL: {download_url}. Error: "
+                        f"{exception}")
+                    raise exception
