@@ -308,7 +308,7 @@ class MSTeamsChannels:
                     channel_name = channel['title']
                     self.logger.info(f"Fetching the tabs for channel: {channel_name}")
 
-                    response = self.client.get_channeL_tabs(
+                    response = self.client.get_channel_tabs(
                         next_url=f"{constant.GRAPH_BASE_URL}/teams/{team_id}/channels/{channel_id}/tabs",
                         start_time=start_time,
                         end_time=end_time,
