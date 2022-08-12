@@ -120,3 +120,41 @@ class MSTeamsClient(MSTeamsRequests):
             exception_message=f"Error while fetching the messages for channel: {channel_name}"
         )
         return parsed_response
+
+    def get_channeL_tabs(self, next_url, start_time, end_time, channel_name):
+        """ Get channel tabs from the Microsoft Teams with the support of filtration.
+            :param next_url: URL to invoke Graph API call
+            :param start_time: Starting time to fetch channel tabs
+            :param end_time: Ending time to fetch channel tabs
+            :param channel_name: Channel for fetching channel tabs
+        """
+        response_list = {"value": []}
+        while next_url:
+            try:
+                response_json = self.get(url=next_url, object_type=constant.CHANNEL_MESSAGES)
+
+                # Filter response based on dateAdded
+                response_value = response_json.get("value")
+                if response_value:
+                    for tab in response_value:
+                        date_added = tab.get("configuration").get("dateAdded")
+                        if not date_added:
+                            response_list["value"].append(tab)
+                        elif start_time <= date_added <= end_time:
+                            response_list["value"].append(tab)
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url:
+                    next_url = None
+
+            except Exception as unknown_exception:
+                self.logger.exception("Error while fetching the channel tabs from Microsoft Team. "
+                                      f"Error: {unknown_exception}")
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch tabs for channel: {channel_name}",
+            exception_message=f"Error while fetching tabs for channel: {channel_name}")
+        return parsed_response
