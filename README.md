@@ -4,7 +4,7 @@
 
 # Microsoft Teams connector package
 
-Use this _Elastic Enterprise Search Microsoft Teams connector package_ to deploy. The connector extracts and syncs data from [Microsoft Teams](https://www.microsoft.com/en/microsoft-teams/group-chat-software) application. The data is indexed into a Workplace Search content source within an Elastic deployment.
+Use this _Elastic Enterprise Search Microsoft Teams connector package_ to deploy deploy and run a Microsoft Teams connector on your own infrastructure. The connector extracts and syncs data from your [Microsoft Teams](https://www.microsoft.com/en/microsoft-teams/group-chat-software) application. The data is indexed into a Workplace Search content source within an Elastic deployment.
 
 ⚠️ _This connector package is a **beta** feature._
 Beta features are subject to change and are not covered by the support SLA of generally available (GA) features. Elastic plans to promote this feature to GA in a future release.
@@ -69,15 +69,15 @@ Collect the information that is required to connect to Microsoft Teams:
 
 - The username the connector will use to log in to Microsoft Teams.
 - The password the connector will use to log in to Microsoft Teams.
-- The client id or application id from the Microsoft Azure.
-- The client secret of the application from the Microsoft Azure.
-- The tenant id of the application from the Microsoft Azure.
+- The `client id` or `application id` from Microsoft Azure.
+- The application's `client secret` from Microsoft Azure.
+- The application's `tenant id` from Microsoft Azure.
 
-ℹ️ The username and password must be the admin account for the Microsoft Teams.
+ℹ️ You must use the `username` and `password` for the Microsoft Teams admin account.
 
 Later, you will [configure the connector](#configure-the-connector) with these values.
 
-ℹ️ The connector uses [msal](https://msal-python.readthedocs.io/en/latest/) module for generating the access token to fetch the documents from Microsoft Teams.
+ℹ️ The connector uses the [MSAL](https://msal-python.readthedocs.io/en/latest/) module to generate access tokens, used for fetching documents from Microsoft Teams.
 
 Some connector features require additional details. Review the following documentation if you plan to use these features:
 
@@ -313,29 +313,29 @@ Finally, you can set custom timestamps to control which objects are synced, base
 The following section provide the solution for issue related to access token generation.
 
 ## Disable Multi-factor Authentication
-1. Go to Microsoft Azure AD > properties.
-2. In the bottom, go to Manage Security defaults, disable the security and save the changes.
-3. Then, go to users and create a new user with global permissions from assignees roles.
-4. Now, go to Microsoft Teams Azure AD conditional access and create a new policy:
+1. Go to **Microsoft Azure AD > Properties**.
+2. Go to **Manage Security defaults**, disable security and save the changes.
+3. Go to **Users** and create a new user with global permissions from assignees roles.
+4. Go to **Microsoft Teams Azure AD Conditional access** and create a new policy:
 - **Name:** Name of the policy
 - **Users or workload identities:** include "allusers" and exclude the newly created users (this step will disable MFA for all excluded users).
 - **Cloud apps or actions:** include "All cloud apps"
 - **Grant:** select "grant access" with Require "multi-factor authentication" enabled and from multiple controls select "Require all the selected controls"
-5. At last, enable the policy with "yes" before saving it.
+5. Enable the policy with "Yes" and save.
 
 ## Add permissions to Microsoft Azure Platform
 1. Check the configuration file and verify all Microsoft Teams settings configuration values are set correctly.
 2. If configuration values are set correctly, go to your application on Microsoft Azure Platform and verify all permissions are added as per the permission listed below and have the admin consent to each permission.
-- User.Read.All (Delegated and Application)
-- TeamMember.Read.All (Delegated)
-- Team.ReadBasic.All (Delegated)
-- TeamsTab.Read.All (Delegated)
-- Group.Read.All (Delegated)
-- ChannelMessage.Read.All (Delegated)
-- Chat.Read (Delegated) & Chat.Read.All (Application)
-- Chat.ReadBasic (Delegated) & Chat.ReadBasic.All (Application)
-- Files.Read.All (Delegated and Application)
-- Calendars.Read (Delegated and Application)
+- `User.Read.All` (Delegated and Application)
+- `TeamMember.Read.All` (Delegated)
+- `Team.ReadBasic.All` (Delegated)
+- `TeamsTab.Read.All` (Delegated)
+- `Group.Read.All` (Delegated)
+- `ChannelMessage.Read.All` (Delegated)
+- `Chat.Read` (Delegated) & `Chat.Read.All` (Application)
+- `Chat.ReadBasic` (Delegated) & `Chat.ReadBasic.All` (Application)
+- `Files.Read.All` (Delegated and Application)
+- `Calendars.Read` (Delegated and Application)
 
 ### Use document-level permissions (DLP)
 
@@ -604,7 +604,7 @@ Supports the following time format `YYYY-MM-DDTHH:MM:SSZ`
 end_time: 2022-04-01T04:44:16Z
 ```
 
-By default it is set to current execution time.
+By default this is set to the current time at execution.
 
 #### `log_level`
 
@@ -675,6 +675,4 @@ Each Microsoft Teams connector requires a runtime environment that satisfies the
 
 ## Connector Limitations
 
-The following sections provide limitations of connector:
-
-- If same attachment has been shared among multiple user chats in MS Teams, then MS Teams will return same ID for already added attachment and for newly created attachment. Due to that in workplace search, the permissions would be indexed for any one of the user chat.
+- If the same attachment is shared in multiple user chats in Microsoft Teams, Teams assigns the same ID for all instances of that attachment. As a result, Workplace Search permissions are indexed for any one of the user chats that contain this attachment.
