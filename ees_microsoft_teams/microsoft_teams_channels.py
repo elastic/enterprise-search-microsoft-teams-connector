@@ -309,9 +309,8 @@ class MSTeamsChannels:
             team_name = team["title"]
             self.logger.info(f"Fetching drives for team: {team_name}")
 
-            drive_response = self.client.get_channel_documents(
-                next_url=f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives", start_time="",
-                end_time="", object_type=constant.DRIVE)
+            drive_response = self.client.get_channel_drives_and_children(
+                next_url=f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives", object_type=constant.DRIVE)
 
             drive_response_data = get_data_from_http_response(
                 self.logger, drive_response,
@@ -338,10 +337,9 @@ class MSTeamsChannels:
                         self.local_storage.insert_document_into_doc_id_storage(
                             ids_list, root_id, constant.CHANNEL_ROOT, drive_id, team_id)
 
-                        children_response = self.client.get_channel_documents(
+                        children_response = self.client.get_channel_drives_and_children(
                             next_url=f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives/{drive_id}/items/"
-                                     f"{root_id}/children",
-                            start_time="", end_time="", object_type=constant.DRIVE)
+                                     f"{root_id}/children", object_type=constant.DRIVE)
 
                         children_response_data = get_data_from_http_response(
                             self.logger, children_response,
@@ -388,7 +386,7 @@ class MSTeamsChannels:
         folder_files_url = f"{constant.GRAPH_BASE_URL}/groups/{team_id}/drives/{drive_id}/items/{document_id}/children"
         folder_files_response = self.client.get_channel_documents(
             next_url=folder_files_url, start_time=start_time, end_time=end_time,
-            object_type=constant.CHANNEL_DOCUMENTS, is_documents=True, team_name=team_name)
+            object_type=constant.CHANNEL_DOCUMENTS, team_name=team_name)
 
         if not folder_files_response:
             return documents
