@@ -159,14 +159,39 @@ class MSTeamsClient(MSTeamsRequests):
             exception_message=f"Error while fetching tabs for channel: {channel_name}")
         return parsed_response
 
-    def get_channel_documents(self, next_url, start_time, end_time, object_type, team_name="", is_documents=False):
+    def get_channel_drives_and_children(self, next_url, object_type, team_name=""):
+        """ Get channel documents from the Microsoft Teams with the support of pagination and filtration.
+            :param next_url: URL to invoke Graph API call
+            :param object_type: Object type to call the GET api
+            :param team_name: Team for fetching channel documents
+        """
+        response_list = {"value": []}
+        try:
+            query = self.query_builder.get_query_for_drives_and_docs().strip()
+            url = f"{next_url}{query}"
+            response_json = self.get(url=url, object_type=object_type)
+            return response_json
+
+        except Exception as unknown_exception:
+            self.logger.exception(
+               f"Error while fetching channel documents the Microsoft Team. Error: {unknown_exception}"
+            )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch the channel documents for team: {team_name}",
+            exception_message=f"Error while fetching the channel documents for team: {team_name}"
+        )
+        return parsed_response
+
+    def get_channel_documents(self, next_url, start_time, end_time, object_type, team_name=""):
         """ Get channel documents from the Microsoft Teams with the support of pagination and filtration.
             :param next_url: URL to invoke Graph API call
             :param start_time: Starting time to fetch channel documents
             :param end_time: Ending time to fetch channel documents
             :param object_type: Object type to call the GET api
             :param team_name: Team for fetching channel documents
-            :param is_documents: Flag to check if the function is called to fetch channel documents
         """
         response_list = {"value": []}
         while next_url:
@@ -174,9 +199,6 @@ class MSTeamsClient(MSTeamsRequests):
                 query = self.query_builder.get_query_for_drives_and_docs().strip()
                 url = f"{next_url}{query}"
                 response_json = self.get(url=url, object_type=object_type)
-
-                if not is_documents:
-                    return response_json
 
                 response_value = response_json.get("value")
                 if response_value:
