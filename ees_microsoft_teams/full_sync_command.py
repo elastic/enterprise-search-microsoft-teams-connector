@@ -158,15 +158,14 @@ class FullSyncCommand(BaseCommand):
                 )
 
             if "channel_tabs" in configuration_objects:
-                self.create_jobs(
+                self.create_and_execute_jobs(
                     thread_count,
                     sync_microsoft_teams.fetch_channel_tabs,
                     (
                         microsoft_teams_object,
                         start_time,
                         end_time,
-                        ids_list,
-                        False
+                        ids_list
                     ),
                     channels_partition_list,
                 )
