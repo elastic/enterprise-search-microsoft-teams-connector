@@ -121,7 +121,7 @@ class MSTeamsClient(MSTeamsRequests):
         )
         return parsed_response
 
-    def get_channeL_tabs(self, next_url, start_time, end_time, channel_name):
+    def get_channel_tabs(self, next_url, start_time, end_time, channel_name):
         """ Get channel tabs from the Microsoft Teams with the support of filtration.
             :param next_url: URL to invoke Graph API call
             :param start_time: Starting time to fetch channel tabs
@@ -157,4 +157,76 @@ class MSTeamsClient(MSTeamsRequests):
             response=response_list,
             error_message=f"Could not fetch tabs for channel: {channel_name}",
             exception_message=f"Error while fetching tabs for channel: {channel_name}")
+        return parsed_response
+
+    def get_channel_drives_and_children(self, next_url, object_type, team_name=""):
+        """ Get channel documents from the Microsoft Teams with the support of pagination and filtration.
+            :param next_url: URL to invoke Graph API call
+            :param object_type: Object type to call the GET api
+            :param team_name: Team for fetching channel documents
+        """
+        response_list = {"value": []}
+        try:
+            query = self.query_builder.get_query_for_drives_and_docs().strip()
+            url = f"{next_url}{query}"
+            response_json = self.get(url=url, object_type=object_type)
+            return response_json
+
+        except Exception as unknown_exception:
+            self.logger.exception(
+               f"Error while fetching channel documents the Microsoft Team. Error: {unknown_exception}"
+            )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch the channel documents for team: {team_name}",
+            exception_message=f"Error while fetching the channel documents for team: {team_name}"
+        )
+        return parsed_response
+
+    def get_channel_documents(self, next_url, start_time, end_time, object_type, team_name=""):
+        """ Get channel documents from the Microsoft Teams with the support of pagination and filtration.
+            :param next_url: URL to invoke Graph API call
+            :param start_time: Starting time to fetch channel documents
+            :param end_time: Ending time to fetch channel documents
+            :param object_type: Object type to call the GET api
+            :param team_name: Team for fetching channel documents
+        """
+        response_list = {"value": []}
+        while next_url:
+            try:
+                query = self.query_builder.get_query_for_drives_and_docs().strip()
+                url = f"{next_url}{query}"
+
+                # The hierarchy(teams > drives > root > children i.e. actual files/folders) through which channel
+                # documents gets fetched. So, due to this `object_type` argument is used to differentiate the objects.
+                response_json = self.get(url=url, object_type=object_type)
+
+                response_value = response_json.get("value")
+                if response_value:
+                    for channel_document in response_value:
+                        if channel_document.get("folder"):
+                            response_list["value"].append(channel_document)
+
+                        else:
+                            last_modified_date_time = channel_document.get("lastModifiedDateTime")
+                            if start_time <= last_modified_date_time <= end_time:
+                                response_list["value"].append(channel_document)
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url or next_url == url:
+                    next_url = None
+
+            except Exception as unknown_exception:
+                self.logger.exception("Error while fetching channel documents the Microsoft Team. Error: "
+                                      f"{unknown_exception}")
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch the channel documents for team: {team_name}",
+            exception_message=f"Error while fetching the channel documents for team: {team_name}"
+        )
         return parsed_response

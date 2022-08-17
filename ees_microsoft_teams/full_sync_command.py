@@ -165,8 +165,7 @@ class FullSyncCommand(BaseCommand):
                         microsoft_teams_object,
                         start_time,
                         end_time,
-                        ids_list,
-                        False
+                        ids_list
                     ),
                     channels_partition_list,
                 )
