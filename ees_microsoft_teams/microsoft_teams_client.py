@@ -198,6 +198,9 @@ class MSTeamsClient(MSTeamsRequests):
             try:
                 query = self.query_builder.get_query_for_drives_and_docs().strip()
                 url = f"{next_url}{query}"
+
+                # The hierarchy(teams > drives > root > children i.e. actual files/folders) through which channel
+                # documents gets fetched. So, due to this `object_type` argument is used to differentiate the objects.
                 response_json = self.get(url=url, object_type=object_type)
 
                 response_value = response_json.get("value")
