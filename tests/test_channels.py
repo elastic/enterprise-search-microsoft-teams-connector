@@ -277,8 +277,47 @@ def test_get_channel_messages(mock_channel_messages, mock_channel_message_docume
             "created_at": "2021-03-29T03:56:11.266Z",
         }
     ]
-    print(target_channel_messages)
     assert source_channel_message == target_channel_messages
+
+
+@pytest.mark.parametrize(
+    "mock_channel_tabs, source_channel_tabs, source_channels",
+    [
+        (
+            [
+                {
+                    "id": "b5d5f001-0471-49a5-aac4-04ef96683be0",
+                    "displayName": "My Planner Tab",
+                    "sortOrderIndex": "21",
+                    "teamsApp": {
+                        "id": "com.microsoft.teamspace.tab.planner",
+                        "displayName": "Microsoft Planner",
+                        "distributionMethod": "store"
+                    },
+                    "webUrl": "https://teams.microsoft.com/l/channel/19Tab"
+                }
+            ],
+            [{
+                'type': 'Channel Tabs',
+                'id': 'b5d5f001-0471-49a5-aac4-04ef96683be0',
+                'title': 'dummy-My Planner Tab',
+                '_allow_permissions': ['19:09fc54a3141a45d0'],
+                'url': 'https://teams.microsoft.com/l/channel/19Tab'
+            }],
+            [{
+                "19:09fc54a3141a45d0": [{"title": "dummy", "id": 1, }],
+            }]
+        )
+    ],
+)
+def test_get_channel_tabs(mock_channel_tabs, source_channel_tabs, source_channels):
+    """Test get tabs for channels"""
+    channel_tabs_obj = create_channel_obj()
+    channel_tabs_obj.client.get_channel_tabs = Mock(return_value=mock_channel_tabs)
+    target_channel_tabs = channel_tabs_obj.get_channel_tabs(
+        source_channels, [1, 2], "2021-03-29T03:56:11.266Z", "2021-03-30T03:56:11.266Z"
+    )
+    assert target_channel_tabs == source_channel_tabs
 
 
 @pytest.mark.parametrize(

@@ -286,3 +286,54 @@ class MSTeamsChannels:
 
         message_body = "\n".join(reply for reply in replies_list)
         return message_body
+
+    def get_channel_tabs(self, team_channels_list, ids_list, start_time, end_time):
+        """ Fetches the channel tabs from the Microsoft Teams.
+            :param team_channels_list: List of dictionaries containing team_id as a key and
+                channels of that team as a value
+            :param ids_list: Shared storage for storing the document ids
+            :param start_time: Starting time for fetching data
+            :param end_time: Ending time for fetching data
+            Returns:
+                documents: Documents to be indexed in Workplace Search
+        """
+        self.logger.debug(
+            f"Fetching channel tabs for the interval of start time: {start_time} and end time: {end_time}.")
+        documents = []
+        tabs_schema = get_schema_fields("channel_tabs", self.object_type_to_index)
+        for team_channel_map in team_channels_list:
+            for team_id, channel_list in team_channel_map.items():
+                for channel in channel_list:
+                    channel_id = channel["id"]
+                    channel_name = channel['title']
+                    self.logger.info(f"Fetching the tabs for channel: {channel_name}")
+
+                    response = self.client.get_channel_tabs(
+                        next_url=f"{constant.GRAPH_BASE_URL}/teams/{team_id}/channels/{channel_id}/tabs",
+                        start_time=start_time,
+                        end_time=end_time,
+                        channel_name=channel_name
+                    )
+
+                    if not response:
+                        return documents
+
+                    for tab in response:
+                        # Logic to append channel tabs for deletion
+                        self.local_storage.insert_document_into_doc_id_storage(
+                            ids_list, tab["id"], constant.CHANNEL_TABS, channel_id, team_id)
+                        tabs_data = {"type": constant.CHANNEL_TABS}
+
+                        for workplace_search_field, microsoft_teams_field in tabs_schema.items():
+                            if workplace_search_field == "title":
+                                tabs_data[workplace_search_field] = f"{channel_name}" \
+                                                                    f"-{tab[microsoft_teams_field]}"
+
+                            else:
+                                tabs_data[workplace_search_field] = tab[microsoft_teams_field]
+
+                        if self.is_permission_sync_enabled:
+                            tabs_data["_allow_permissions"] = [team_id]
+
+                        documents.append(tabs_data)
+        return documents
