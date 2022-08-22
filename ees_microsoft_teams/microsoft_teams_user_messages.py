@@ -7,6 +7,7 @@
 """ This module fetches all the messages, attachments, chat tabs, and meeting
     recordings from Microsoft Teams.
 """
+from collections import defaultdict
 from . import constant
 from .microsoft_teams_client import MSTeamsClient
 
@@ -39,14 +40,12 @@ class MSTeamsUserMessage:
                 "attachments and meeting recordings.."
             )
             # member_dict: Dictionary of members with their id for adding permissions
-            member_dict = {}
+            member_dict = defaultdict(list)
             for chat in chat_response_data:
                 for member in chat["members"]:
                     display_name = member["displayName"]
                     if display_name:
-                        member_dict[display_name] = [
-                            *member_dict.get(display_name, []) + [chat["id"]]
-                        ]
+                        member_dict[display_name].append(chat["id"])
                 # Logic to append chat for deletion
                 self.local_storage.insert_document_into_doc_id_storage(
                     ids_list, chat["id"], constant.CHATS, "", ""
