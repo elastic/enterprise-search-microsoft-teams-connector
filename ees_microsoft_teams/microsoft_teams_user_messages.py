@@ -135,7 +135,7 @@ class MSTeamsUserMessage:
                 self.logger.exception(
                     f"[Fail] Error while fetching user chats details from teams. Error: {exception}"
                 )
-                raise exception
+                raise
             self.logger.info(
                 f"Fetched chats, attachments and meeting recordings metadata. Attempting to fetch tabs "
                 f"for chat: {val['id']}"
