@@ -170,6 +170,19 @@ class FullSyncCommand(BaseCommand):
                     channels_partition_list,
                 )
 
+            if "channel_documents" in configuration_objects:
+                self.create_and_execute_jobs(
+                    thread_count,
+                    sync_microsoft_teams.fetch_channel_documents,
+                    (
+                        microsoft_teams_object,
+                        start_time,
+                        end_time,
+                        ids_list
+                    ),
+                    teams_partition_list,
+                )
+
             storage_with_collection["global_keys"] = list(ids_list)
             self.local_storage.update_storage(
                 storage_with_collection, "teams"

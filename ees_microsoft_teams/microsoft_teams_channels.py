@@ -494,4 +494,4 @@ class MSTeamsChannels:
                     self.logger.exception(
                         f"Error while downloading the channel document from download URL: {download_url}. Error: "
                         f"{exception}")
-                    raise exception
+                    raise
