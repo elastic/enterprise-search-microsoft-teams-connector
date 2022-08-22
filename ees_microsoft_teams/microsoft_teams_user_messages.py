@@ -99,8 +99,8 @@ class MSTeamsUserMessage:
                                         if attachment_document:
                                             documents.extend(attachment_document)
                             content = chat["body"]["content"]
-                            msg = html_to_text(self.logger, content)
-                            if msg:
+                            chat_message = html_to_text(self.logger, content)
+                            if chat_message:
                                 # Logic to append chat message for deletion
                                 self.local_storage.insert_document_into_doc_id_storage(
                                     ids_list,
@@ -114,7 +114,7 @@ class MSTeamsUserMessage:
                                     user_dict[ws_field] = chat[ms_fields]
                                 user_dict["title"] = title
                                 user_dict["body"] = (
-                                    f"{user_name} - {msg}" if user_name else msg
+                                    f"{user_name} - {chat_message}" if user_name else chat_message
                                 )
                                 user_dict["url"] = val["webUrl"]
 
