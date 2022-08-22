@@ -63,7 +63,7 @@ class MSTeamsUserMessage:
             self.logger.exception(
                 f"[Fail] Error while fetching user tabs from teams. Error: {exception}"
             )
-            raise exception
+            raise
 
     def fetch_meeting_recording(self, chat_id, chat):
         """Fetches meeting recording from the Microsoft Teams
