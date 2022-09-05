@@ -12,6 +12,7 @@ cached_property==1.5.2; python_version < '3.8'
 pytest-cov==3.0.0
 flake8==4.0.1
 pytest-cov==3.0.0
+requests-mock==1.9.3
 pytest-custom_exit_code==0.3.0
 dateparser==1.1.1
 more_itertools==8.13.0

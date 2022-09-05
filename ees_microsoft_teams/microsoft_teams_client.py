@@ -230,3 +230,162 @@ class MSTeamsClient(MSTeamsRequests):
             exception_message=f"Error while fetching the channel documents for team: {team_name}"
         )
         return parsed_response
+
+    def get_user_chats(self, next_url):
+        """ Get user chats from the Microsoft Teams with the support of pagination and filtration.
+            :param next_url: URL to invoke Graph API call
+        """
+        response_list = {"value": []}
+        is_calling_first_time = True
+        while next_url:
+            try:
+                query = self.query_builder.get_query_for_user_chats().strip()
+                if is_calling_first_time:
+                    url = f"{next_url}{query}"
+                    is_calling_first_time = False
+                else:
+                    url = next_url
+                response_json = self.get(url=url, object_type=constant.CHATS)
+                response_list["value"].extend(response_json.get("value"))
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url or next_url == url:
+                    next_url = None
+
+            except Exception as unknown_exception:
+                self.logger.exception(
+                    f"Error while fetching user chats from the Microsoft Teams. Error: {unknown_exception}"
+                )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message="Could not fetch the User Chats from Microsoft Teams",
+            exception_message="Error while fetching the User Chats from Microsoft Teams",
+        )
+
+        return parsed_response
+
+    def get_user_chat_messages(self, next_url, start_time, end_time, chat_id):
+        """ Get user chat messages from the Microsoft Teams with the support of pagination and filtration.
+            :param next_url: URL to invoke Graph API call
+            :param start_time: Starting time to fetch user chats messages
+            :param end_time: Ending time to fetch user chat messages
+            :param chat_id: Chat ID to fetch user chat messages
+        """
+        response_list = {"value": []}
+        is_calling_first_time = True
+        while next_url:
+            try:
+                query = self.query_builder.get_query_for_user_chats_messages().strip()
+                if is_calling_first_time:
+                    url = f"{next_url}{query}"
+                    is_calling_first_time = False
+                else:
+                    url = next_url
+                response_json = self.get(url=url, object_type=constant.USER_CHATS_MESSAGE)
+
+                # Filter response based on lastModifiedDateTime
+                response_value = response_json.get("value")
+                if response_value:
+                    for chat_message in response_value:
+                        last_modified_date_time = chat_message.get("lastModifiedDateTime")
+                        if start_time <= last_modified_date_time <= end_time:
+                            response_list["value"].append(chat_message)
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url or next_url == url:
+                    next_url = None
+
+            except Exception as unknown_exception:
+                self.logger.exception(
+                    f"Error while fetching the Microsoft User Chats Messages. Error: {unknown_exception}"
+                )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch the User Chats Messages from Microsoft Teams for chat id: {chat_id}",
+            exception_message=f"Error while fetching User Chats Messages from Microsoft Teams for chat id: {chat_id}",
+        )
+
+        return parsed_response
+
+    def get_user_chat_tabs(self, next_url, start_time, end_time, chat_id):
+        """ Get user chat tabs from the Microsoft Teams with the support of pagination and filtration.
+            :param next_url: URL to invoke Graph API call
+            :param start_time: Starting time to fetch user chats tabs
+            :param end_time: Ending time to fetch user chat tabs
+            :param chat_id: Chat ID to fetch user chat tabs
+        """
+        response_list = {"value": []}
+        try:
+            response_json = self.get(url=next_url, object_type=constant.USER_CHAT_TABS)
+            if response_json:
+                # Filter response based on dateAdded
+                response_value = response_json.get("value")
+                if response_value:
+                    for tab in response_value:
+                        date_added = tab.get("configuration").get("dateAdded")
+                        if not date_added:
+                            response_list["value"].append(tab)
+                        elif start_time <= date_added <= end_time:
+                            response_list["value"].append(tab)
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url:
+                    next_url = None
+
+        except Exception as unknown_exception:
+            self.logger.exception(
+                f"Error while fetching the Microsoft User Chats Tabs. Error: {unknown_exception}"
+            )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message=f"Could not fetch the User Chats Tabs from Microsoft Teams for chat id: {chat_id}",
+            exception_message=f"Error while fetching the User Chats Tabs from Microsoft Teams for chat id: {chat_id}",
+        )
+
+        return parsed_response
+
+    def get_user_chat_attachment_drive(self, next_url):
+        """ Get user chat attachment drives from the Microsoft Teams.
+            :param next_url: URL to invoke Graph API call
+        """
+        response_json = None
+        try:
+            response_json = self.get(url=next_url, object_type=constant.ATTACHMENTS)
+
+        except Exception as unknown_exception:
+            self.logger.exception(
+                f"Error while fetching the Microsoft User Chat Attachment. Error: {unknown_exception}"
+            )
+        return response_json
+
+    def get_user_chat_attachment_drive_children(self, next_url):
+        """ Get user chat attachments from the Microsoft Teams.
+            :param next_url: URL to invoke Graph API call
+        """
+        response_list = {"value": []}
+        try:
+            response_json = self.get(url=next_url, object_type=constant.ATTACHMENTS)
+            response_list["value"].extend(response_json.get("value"))
+
+        except Exception as unknown_exception:
+            self.logger.exception(
+                f"Error while fetching the Microsoft User Chat Attachment. Error: {unknown_exception}"
+            )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message="Could not fetch the User Chat Attachment from Microsoft Teams",
+            exception_message="Error while fetching the User Chat Attachment from Microsoft Teams",
+        )
+
+        return parsed_response
