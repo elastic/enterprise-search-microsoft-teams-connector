@@ -68,6 +68,15 @@ class QueryBuilder(object):
     def get_query_for_channel_and_chat_messages(self, page_size=50):
         return f"?$top={page_size}"
 
+    def get_query_for_drives_and_docs(self, page_size=5000):
+        return f"?$top={page_size}"
+
+    def get_query_for_user_chats(self, page_size=50):
+        return f"&$top={page_size}"
+
+    def get_query_for_calendars(self, start_time, end_time, page_size=50):
+        return f"?$filter=lastModifiedDateTime ge {start_time} and lastModifiedDateTime le {end_time}&$top={page_size}"
+
 
 class MSTeamsRequests:
     """This class invokes GET call to the Microsoft Graph API and handles the errors."""
