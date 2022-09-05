@@ -29,6 +29,7 @@ def test_start_producer():
     full_sync_obj = FullSyncCommand(args)
     full_sync_obj.create_and_execute_jobs = Mock(return_value=[])
     full_sync_obj.create_jobs_for_teams = Mock()
+    full_sync_obj.create_jobs_for_user_chats = Mock()
     _, logger = settings()
     queue = ConnectorQueue(logger)
 
