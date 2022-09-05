@@ -24,6 +24,30 @@ class SyncMicrosoftTeams:
         self.local_storage = LocalStorage(config)
         self.queue = queue
 
+    def fetch_user_chat_messages(
+        self,
+        chats_obj,
+        ids_list,
+        user_drive,
+        start_time,
+        end_time,
+        user_attachment_token,
+        chats
+    ):
+        """Fetches user chat messages and other chat objects from Microsoft Teams
+        :param chats: List of chats to fetch its children objects
+        :param chats_obj: Chats class object to fetch the chats
+        :param ids_list: Document ids list from respective doc id file
+        :param user_drive: User Drive to store user related details
+        :param start_time: Start time for fetching the user chats data
+        :param end_time: End time for fetching the user chats data
+        :param user_attachment_token: Access token for fetching the user chat attachments
+        """
+        documents = chats_obj.get_user_chat_messages(
+            ids_list, user_drive, chats, start_time, end_time, user_attachment_token
+        )
+        self.queue.append_to_queue(constant.USER_CHATS_MESSAGE, documents)
+
     def fetch_teams(self, teams_obj, ids_list):
         """Fetches teams from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
