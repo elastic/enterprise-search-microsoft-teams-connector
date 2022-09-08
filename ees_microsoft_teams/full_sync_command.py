@@ -321,3 +321,6 @@ class FullSyncCommand(BaseCommand):
             self.logger.exception(
                 f"Error while fetching the calendars. Error: {exception}"
             )
+        self.logger.info(
+            "Completed fetching the calendar meetings"
+        )
