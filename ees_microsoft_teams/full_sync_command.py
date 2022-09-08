@@ -15,6 +15,7 @@ from .checkpointing import Checkpoint
 from .connector_queue import ConnectorQueue
 from .sync_enterprise_search import SyncEnterpriseSearch
 from .sync_microsoft_teams import SyncMicrosoftTeams
+from .msal_access_token import MSALAccessToken
 from .utils import split_documents_into_equal_chunks
 
 INDEXING_TYPE = "full"
@@ -47,6 +48,10 @@ class FullSyncCommand(BaseCommand):
             start_time,
             end_time,
             queue,
+        )
+
+        self.create_jobs_for_calendars(
+            INDEXING_TYPE, sync_microsoft_teams, start_time, end_time, queue
         )
 
         for _ in range(self.config.get_value("enterprise_search_sync_thread_count")):
@@ -111,7 +116,7 @@ class FullSyncCommand(BaseCommand):
         storage_with_collection = self.local_storage.get_documents_from_doc_id_storage(
             "teams"
         )
-        ids_list = storage_with_collection.get("global_keys")
+        ids_list = storage_with_collection.get("global_keys", [])
 
         self.logger.debug("Started fetching the teams and its objects data...")
         microsoft_teams_object = self.microsoft_team_channel_object(
@@ -196,6 +201,86 @@ class FullSyncCommand(BaseCommand):
             )
         self.logger.info(
             "Completed fetching of teams and it's objects data to the Workplace Search"
+        )
+
+    def create_jobs_for_user_chats(
+        self,
+        indexing_type,
+        sync_microsoft_teams,
+        thread_count,
+        start_time,
+        end_time,
+        queue,
+    ):
+        """Creates jobs for fetching the user chats and its children objects
+        :param indexing_type: The type of the indexing i.e. Full or Incremental
+        :param sync_microsoft_teams: Object for fetching the Microsoft Teams object
+        :param thread_count: Thread count to make partitions
+        :param start_time: Start time for fetching the data
+        :param end_time: End time for fetching the data
+        :param queue: Shared queue for storing the data
+        """
+        if "user_chats" not in self.config.get_value("object_type_to_index"):
+            return
+        self.logger.debug(
+            "Started fetching the user chats, meeting chats, and meeting recordings..."
+        )
+
+        user_chat_object = self.microsoft_user_chats_object(
+            self.get_access_token()
+        )
+        storage_with_collection = self.local_storage.get_documents_from_doc_id_storage(
+            "user_chats"
+        )
+        ids_list = storage_with_collection.get("global_keys", [])
+
+        try:
+
+            user_permissions, chats = sync_microsoft_teams.fetch_user_chats(
+                user_chat_object, ids_list
+            )
+
+            if self.config.get_value("enable_document_permission"):
+                sync_microsoft_teams.sync_permissions(user_permissions)
+
+            chats_partition_list = split_documents_into_equal_chunks(
+                chats, thread_count
+            )
+
+            user_attachment_token = MSALAccessToken(self.logger, self.config)
+            user_attachment_token = user_attachment_token.get_token(
+                is_acquire_for_client=True
+            )
+            user_drive = {}
+
+            self.create_and_execute_jobs(
+                thread_count,
+                sync_microsoft_teams.fetch_user_chat_messages,
+                (
+                    user_chat_object,
+                    ids_list,
+                    user_drive,
+                    start_time,
+                    end_time,
+                    user_attachment_token,
+                ),
+                chats_partition_list,
+            )
+
+            storage_with_collection["global_keys"] = list(ids_list)
+            self.local_storage.update_storage(
+                storage_with_collection, "user_chats"
+            )
+
+            self.logger.debug("Saving the checkpoint for User Chats")
+            queue.put_checkpoint("user_chats", end_time, indexing_type)
+        except Exception as exception:
+            self.logger.exception(
+                f"Error while indexing user chats, meeting chats and meeting recordings. Error: "
+                f"{exception}"
+            )
+        self.logger.info(
+            "Completed fetching the user chats, meeting chats and meeting recordings"
         )
 
     def create_jobs_for_calendars(

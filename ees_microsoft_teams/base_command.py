@@ -25,6 +25,7 @@ from .configuration import Configuration
 from .local_storage import LocalStorage
 from .microsoft_teams_calendars import MSTeamsCalendar
 from .microsoft_teams_channels import MSTeamsChannels
+from .microsoft_teams_user_messages import MSTeamsUserMessage
 from .msal_access_token import MSALAccessToken
 
 
@@ -120,6 +121,12 @@ class BaseCommand:
     def microsoft_team_channel_object(self, access_token):
         """Get the object for fetching the teams and its children"""
         return MSTeamsChannels(
+            access_token, self.logger, self.config, self.local_storage
+        )
+
+    def microsoft_user_chats_object(self, access_token):
+        """Get the object for fetching the user chats related data"""
+        return MSTeamsUserMessage(
             access_token, self.logger, self.config, self.local_storage
         )
 
