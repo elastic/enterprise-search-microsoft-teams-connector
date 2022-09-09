@@ -50,6 +50,15 @@ class FullSyncCommand(BaseCommand):
             queue,
         )
 
+        self.create_jobs_for_user_chats(
+            INDEXING_TYPE,
+            sync_microsoft_teams,
+            thread_count,
+            start_time,
+            end_time,
+            queue
+        )
+
         self.create_jobs_for_calendars(
             INDEXING_TYPE, sync_microsoft_teams, start_time, end_time, queue
         )

@@ -43,6 +43,57 @@ def create_user_message_obj():
 
 
 @pytest.mark.parametrize(
+    "mock_chats_document, source_documents, source_members",
+    [
+        (
+            [
+                {
+                    "id": "19:meeting_MjdhNjM4YzUtYzExZi00OTFkLTkzZTAtNTVlNmZmMDhkNGU2@thread.v2",
+                    "topic": "Meeting chat sample",
+                    "createdDateTime": "2020-12-08T23:53:05.801Z",
+                    "lastUpdatedDateTime": "2020-12-08T23:58:32.511Z",
+                    "chatType": "meeting",
+                    "members": [
+                        {
+                            "@odata.type": "#microsoft.graph.aadUserConversationMember",
+                            "id": "123=",
+                            "roles": [],
+                            "displayName": "Tony Stark",
+                            "userId": "4595d2f2-7b31-446c-84fd-9b795e63114b",
+                            "email": "starkt@teamsgraph.onmicrosoft.com"
+                        }
+                    ]
+                }
+            ],
+            [{
+                'id': '19:meeting_MjdhNjM4YzUtYzExZi00OTFkLTkzZTAtNTVlNmZmMDhkNGU2@thread.v2',
+                'topic': 'Meeting chat sample',
+                'createdDateTime': '2020-12-08T23:53:05.801Z',
+                'lastUpdatedDateTime': '2020-12-08T23:58:32.511Z',
+                'chatType': 'meeting',
+                'members': [{
+                    '@odata.type': '#microsoft.graph.aadUserConversationMember',
+                    'id': '123=',
+                    'roles': [],
+                    'displayName': 'Tony Stark',
+                    'userId': '4595d2f2-7b31-446c-84fd-9b795e63114b',
+                    'email': 'starkt@teamsgraph.onmicrosoft.com'
+                }]
+            }],
+            {'Tony Stark': ['19:meeting_MjdhNjM4YzUtYzExZi00OTFkLTkzZTAtNTVlNmZmMDhkNGU2@thread.v2']},
+        )
+    ],
+)
+def test_get_user_chats(mock_chats_document, source_documents, source_members):
+    """Test the method of fetching user chats"""
+    user_message_obj = create_user_message_obj()
+    user_message_obj.client.get_user_chats = Mock(return_value=mock_chats_document)
+    target_members, target_documents = user_message_obj.get_user_chats([1, 2, 3])
+    assert source_documents == target_documents
+    assert source_members == target_members
+
+
+@pytest.mark.parametrize(
     "chats, source_meeting",
     [
         (

@@ -278,7 +278,7 @@ class MSTeamsClient(MSTeamsRequests):
         is_calling_first_time = True
         while next_url:
             try:
-                query = self.query_builder.get_query_for_user_chats_messages().strip()
+                query = self.query_builder.get_query_for_channel_and_chat_messages().strip()
                 if is_calling_first_time:
                     url = f"{next_url}{query}"
                     is_calling_first_time = False
