@@ -10,8 +10,10 @@
     objects and methods that will can be used by commands.
 """
 
+import csv
 import functools
 import logging
+import os
 
 try:
     from functools import cached_property
@@ -21,12 +23,18 @@ except ImportError:
 from .enterprise_search_wrapper import EnterpriseSearchWrapper
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from elastic_enterprise_search import __version__
+from packaging import version
+
 from .configuration import Configuration
 from .local_storage import LocalStorage
 from .microsoft_teams_calendars import MSTeamsCalendar
 from .microsoft_teams_channels import MSTeamsChannels
 from .microsoft_teams_user_messages import MSTeamsUserMessage
 from .msal_access_token import MSALAccessToken
+from .permission_sync_command import PermissionSyncCommand
+
+ENTERPRISE_V8 = version.parse("8.0")
 
 
 class BaseCommand:
@@ -36,6 +44,7 @@ class BaseCommand:
 
     def __init__(self, args):
         self.args = args
+        self.version = version.parse(__version__)
 
     def execute(self):
         """Run the command.
@@ -135,3 +144,84 @@ class BaseCommand:
         return MSTeamsCalendar(
             access_token, self.logger, self.config, self.local_storage
         )
+
+    def get_mapped_users(self):
+        """Returns mapped users from the CSV file
+        """
+        rows = {}
+        mapping_sheet_path = self.config.get_value("microsoft_teams.user_mapping")
+        if (
+            mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0
+        ):
+            with open(mapping_sheet_path, encoding="UTF-8") as file:
+                for row in csv.reader(file):
+                    rows[row[0]] = row[1]
+        return rows
+
+    def manage_permissions(self, object_permissions, ws_user, ws_permissions):
+        """Returns the permissions differs from Workplace Search
+        :param object_permissions: Permissions of the Microsoft Teams Object
+        :param ws_user: Workplace Search user
+        :param ws_permissions: Workplace Search permissions of a user
+        """
+        mapped_users = self.get_mapped_users()
+        for ms_team_user, permissions in object_permissions.items():
+            ms_team_user = mapped_users.get(ms_team_user, ms_team_user)
+            if ms_team_user.lower() == ws_user.lower():
+                ws_permissions = set(ws_permissions).difference(permissions)
+        return list(ws_permissions)
+
+    def remove_object_permissions(self, end_time):
+        """Remove the permissions of the users removed from the Microsoft Teams objects
+        :param end_time: End time to fetch the permissions
+        """
+        deleted_permissions_list = []
+        microsoft_teams_object = self.microsoft_team_channel_object(
+            self.get_access_token()
+        )
+        user_chat_object = self.microsoft_user_chats_object(
+            self.get_access_token()
+        )
+        calendar_object = self.microsoft_calendar_object(
+            self.get_access_token(is_acquire_for_client=True)
+        )
+
+        teams_permissions = microsoft_teams_object.get_team_members()
+        user_chats_permissions, _ = user_chat_object.get_user_chats([])
+        calendar_permissions, _ = calendar_object.get_calendars([], self.config.get_value('start_time'), end_time)
+
+        ws_user_permissions = PermissionSyncCommand(
+            self.logger, self.config, self.workplace_search_custom_client
+        ).list_user_permissions()
+
+        for ws_user, ws_permissions in ws_user_permissions.items():
+            actual_permissions = ws_permissions
+            ws_permissions = self.manage_permissions(teams_permissions, ws_user, ws_permissions)
+            ws_permissions = self.manage_permissions(user_chats_permissions, ws_user, ws_permissions)
+            ws_permissions = self.manage_permissions(calendar_permissions, ws_user, ws_permissions)
+            deleted_permissions_list.append({"user": ws_user, "actual_permissions": actual_permissions,
+                                            "deleted_permissions": ws_permissions})
+        for permission_dict in deleted_permissions_list:
+            if permission_dict["deleted_permissions"]:
+                if self.version >= ENTERPRISE_V8:
+                    self.workplace_search_custom_client.remove_permissions(
+                        {
+                            "external_user_properties": [{'attribute_value': permission_dict['user']}],
+                            "permissions": permission_dict['deleted_permissions']
+                        }
+                    )
+                else:
+                    self.workplace_search_custom_client.remove_permissions(
+                        {"user": permission_dict['user'], "permissions": permission_dict['deleted_permissions']}
+                    )
+                self.workplace_search_custom_client.add_permissions(
+                    permission_dict['user'],
+                    list(set(permission_dict['actual_permissions']) - set(permission_dict['deleted_permissions']))
+                )
+                self.logger.debug(
+                    f"Removed permissions for {permission_dict['user']} from the Workplace Search"
+                )
+            else:
+                self.logger.debug(
+                    f"No permission found for {permission_dict['user']} to remove from Workplace Search"
+                )

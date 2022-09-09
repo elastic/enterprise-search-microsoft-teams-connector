@@ -5,6 +5,7 @@
 #
 """This module perform operations related to Enterprise Search based on the Enterprise Search version
 """
+import elastic_transport
 from elastic_enterprise_search import WorkplaceSearch, __version__
 from packaging import version
 
@@ -40,6 +41,120 @@ class EnterpriseSearchWrapper:
                 self.workplace_search_client = WorkplaceSearch(
                     f"{self.host}/api/ws/v1/sources", http_auth=self.api_key
                 )
+
+    def add_permissions(self, user_name, permission_list):
+        """Add one or more permission for a given user. Permissions are added atop the existing.
+        :param user_name: user to assign permissions
+        :param permission_list: list of permissions
+        """
+        try:
+            if self.version >= ENTERPRISE_V8:
+                from elastic_enterprise_search.exceptions import (
+                    BadRequestError, ConflictError)
+
+                external_user_properties = [
+                    {
+                        "attribute_name": "_elasticsearch_username",
+                        "attribute_value": user_name,
+                    }
+                ]
+                try:
+                    self.workplace_search_client.create_external_identity(
+                        content_source_id=self.ws_source,
+                        external_user_id=user_name,
+                        external_user_properties=external_user_properties,
+                        permissions=permission_list,
+                    )
+                except ConflictError:
+                    self.logger.debug(
+                        f"External entity :{user_name}  already exits. Trying to update the existing permissions.."
+                    )
+                    self.workplace_search_client.put_external_identity(
+                        content_source_id=self.ws_source,
+                        external_user_id=user_name,
+                        external_user_properties=external_user_properties,
+                        permissions=permission_list,
+                    )
+                except BadRequestError:
+                    raise ValueError("Incompatible version")
+            else:
+                try:
+                    self.workplace_search_client.add_user_permissions(
+                        content_source_id=self.ws_source,
+                        user=user_name,
+                        body={"permissions": permission_list},
+                    )
+                except elastic_transport.exceptions.NotFoundError:
+                    raise ValueError("Incompatible version")
+            self.logger.info(
+                f"Successfully indexed the permissions for {user_name} user into the Workplace Search"
+            )
+        except ValueError as error:
+            raise ValueError(f"Please compare the Enterprise Search version used while running the installation \
+                                to the version of Enterprise Search installed. Error: {error}")
+        except Exception as exception:
+            self.logger.exception(
+                f"Error while indexing the permissions for user: {user_name} to the workplace. Error: {exception}"
+            )
+
+    def list_permissions(self):
+        """List permissions for one or all users"""
+        user_permission = []
+        try:
+            if self.version >= ENTERPRISE_V8:
+                user_permission = self.workplace_search_client.list_external_identities(
+                    content_source_id=self.ws_source
+                )
+            else:
+                try:
+                    user_permission = self.workplace_search_client.list_permissions(
+                        content_source_id=self.ws_source,
+                    )
+                except elastic_transport.exceptions.NotFoundError:
+                    raise ValueError("Incompatible version")
+            self.logger.info(
+                "Successfully retrieves all permissions from the workplace"
+            )
+        except ValueError as error:
+            raise ValueError(f"Please compare the Enterprise Search version used while running the installation \
+                                to the version of Enterprise Search installed. Error: {error}")
+        except Exception as exception:
+            self.logger.exception(
+                f"Error while retrieving the permissions from the workplace. Error: {exception}"
+            )
+        return user_permission
+
+    def remove_permissions(self, permission):
+        """Removes one or more permissions from an existing set of permissions
+        :param permission: dictionary containing permission of particular user
+        """
+        try:
+            if self.version >= ENTERPRISE_V8:
+                if permission.get("external_user_properties"):
+                    user_name = permission["external_user_properties"][0]["attribute_value"]
+                    self.workplace_search_client.delete_external_identity(
+                        content_source_id=self.ws_source, external_user_id=user_name
+                    )
+                else:
+                    raise ValueError("Incompatible version")
+            else:
+                try:
+                    user_name = permission["user"]
+                    self.workplace_search_client.remove_user_permissions(
+                        content_source_id=self.ws_source,
+                        user=user_name,
+                        body={"permissions": permission["permissions"]},
+                    )
+                except elastic_transport.exceptions.NotFoundError:
+                    raise ValueError("Incompatible version")
+            self.logger.info("Successfully removed the permissions from the Workplace Search.")
+        except ValueError as error:
+            raise ValueError(f"Please compare the Enterprise Search version used while running the installation \
+                                to the version of Enterprise Search installed. Error: {error}")
+        except Exception as exception:
+            self.logger.exception(
+                f"Error while removing the permissions from the workplace. Error: {exception}"
+            )
 
     def create_content_source(self, schema, display, name, is_searchable):
         """Create a content source

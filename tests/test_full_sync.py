@@ -28,12 +28,16 @@ def test_start_producer():
     args.config_file = CONFIG_FILE
     full_sync_obj = FullSyncCommand(args)
     full_sync_obj.create_and_execute_jobs = Mock(return_value=[])
+    full_sync_obj.remove_object_permissions = Mock()
     full_sync_obj.create_jobs_for_teams = Mock()
+    full_sync_obj.create_jobs_for_user_chats = Mock()
+    full_sync_obj.create_jobs_for_calendars = Mock()
     _, logger = settings()
     queue = ConnectorQueue(logger)
 
     # Execute
     full_sync_obj.start_producer(queue)
+    full_sync_obj.create_jobs_for_calendars.assert_called_once == 1
 
 
 def test_start_consumer(caplog):

@@ -120,3 +120,11 @@ class SyncMicrosoftTeams:
         )
         self.queue.append_to_queue(constant.CALENDAR, documents)
         return calendar_permissions
+
+    def sync_permissions(self, user_permissions):
+        """Sync permissions of Microsoft Objects to Workplace Search
+        :param user_permissions: Dictionary having the user permissions to be indexed into
+            Workplace Search
+        """
+        for user, permissions in user_permissions.items():
+            self.add_permissions_to_queue(user, permissions)
