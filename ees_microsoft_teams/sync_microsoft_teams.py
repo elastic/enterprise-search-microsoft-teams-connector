@@ -115,3 +115,16 @@ class SyncMicrosoftTeams:
             teams, ids_list, start_time, end_time
         )
         self.queue.append_to_queue(constant.CHANNEL_DOCUMENTS, channel_documents)
+
+    def fetch_calendars(self, calendar_obj, ids_list, start_time, end_time):
+        """Fetches calendar events from Microsoft Teams
+        :param calendar_obj: Class object to fetch calendar events
+        :param ids_list: Document ids list from respective doc id file
+        :param start_time: Start time for fetching calendar events
+        :param end_time: End time for fetching calendar events
+        """
+        calendar_permissions, documents = calendar_obj.get_calendars(
+            ids_list, start_time, end_time
+        )
+        self.queue.append_to_queue(constant.CALENDAR, documents)
+        return calendar_permissions

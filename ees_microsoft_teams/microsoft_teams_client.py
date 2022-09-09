@@ -389,3 +389,37 @@ class MSTeamsClient(MSTeamsRequests):
         )
 
         return parsed_response
+
+    def get_calendars(self, next_url, start_time, end_time):
+        """ Get calendar events from the Microsoft Teams with the support of pagination and
+            filtration.
+            :param next_url: URL to invoke Graph API call
+            :param start_time: Starting time to fetch calendar events
+            :param end_time: Ending time to fetch calendat events
+        """
+        response_list = {"value": []}
+        while next_url:
+            try:
+                query = self.query_builder.get_query_for_calendars(start_time, end_time).strip()
+                url = f"{next_url}{query}"
+                response_json = self.get(url=url, object_type=constant.CALENDAR)
+                response_list["value"].extend(response_json.get("value"))
+
+                next_url = response_json.get("@odata.nextLink")
+
+                if not next_url or next_url == url:
+                    next_url = None
+
+            except Exception as unknown_exception:
+                self.logger.exception(
+                    f"Error while fetching calendar events from the Microsoft Teams. Error: {unknown_exception}"
+                )
+
+        parsed_response = get_data_from_http_response(
+            logger=self.logger,
+            response=response_list,
+            error_message="Could not fetch the teams from Microsoft Teams",
+            exception_message="Error while fetching the teams from Microsoft Teams",
+        )
+
+        return parsed_response
