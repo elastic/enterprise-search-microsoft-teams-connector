@@ -50,6 +50,10 @@ class FullSyncCommand(BaseCommand):
             queue,
         )
 
+        self.create_jobs_for_calendars(
+            INDEXING_TYPE, sync_microsoft_teams, start_time, end_time, queue
+        )
+
         for _ in range(self.config.get_value("enterprise_search_sync_thread_count")):
             queue.end_signal()
 
@@ -112,7 +116,7 @@ class FullSyncCommand(BaseCommand):
         storage_with_collection = self.local_storage.get_documents_from_doc_id_storage(
             "teams"
         )
-        ids_list = storage_with_collection.get("global_keys")
+        ids_list = storage_with_collection.get("global_keys", [])
 
         self.logger.debug("Started fetching the teams and its objects data...")
         microsoft_teams_object = self.microsoft_team_channel_object(
@@ -216,11 +220,11 @@ class FullSyncCommand(BaseCommand):
         :param end_time: End time for fetching the data
         :param queue: Shared queue for storing the data
         """
+        if "user_chats" not in self.config.get_value("object_type_to_index"):
+            return
         self.logger.debug(
             "Started fetching the user chats, meeting chats, and meeting recordings..."
         )
-        if "user_chats" not in self.config.get_value("object_type_to_index"):
-            return
 
         user_chat_object = self.microsoft_user_chats_object(
             self.get_access_token()
@@ -277,4 +281,46 @@ class FullSyncCommand(BaseCommand):
             )
         self.logger.info(
             "Completed fetching the user chats, meeting chats and meeting recordings"
+        )
+
+    def create_jobs_for_calendars(
+        self, indexing_type, sync_microsoft_teams, start_time, end_time, queue
+    ):
+        """Creates jobs for fetching the calendar events
+        :param indexing_type: The type of the indexing i.e. Full or Incremental
+        :param sync_microsoft_teams: Object for fetching the Microsoft Teams object
+        :param start_time: Start time for fetching the data
+        :param end_time: End time for fetching the data
+        :param queue: Shared queue for storing the data
+        """
+        self.logger.debug("Started fetching the calendar events from Microsoft Teams...")
+        if "calendar" not in self.config.get_value("object_type_to_index"):
+            return
+
+        storage_with_collection = self.local_storage.get_documents_from_doc_id_storage("calendar")
+        ids_list = storage_with_collection.get("global_keys", [])
+        try:
+            calendar_object = self.microsoft_calendar_object(
+                self.get_access_token(is_acquire_for_client=True)
+            )
+            calendar_permissions = sync_microsoft_teams.fetch_calendars(
+                calendar_object, ids_list, start_time, end_time
+            )
+
+            if self.config.get_value("enable_document_permission"):
+                sync_microsoft_teams.sync_permissions(calendar_permissions)
+
+            storage_with_collection["global_keys"] = list(ids_list)
+            self.local_storage.update_storage(
+                storage_with_collection, "calendar"
+            )
+
+            self.logger.debug("Saving the checkpoint for Calendars")
+            queue.put_checkpoint("calendar", end_time, indexing_type)
+        except Exception as exception:
+            self.logger.exception(
+                f"Error while fetching the calendars. Error: {exception}"
+            )
+        self.logger.info(
+            "Completed fetching the calendar meetings"
         )

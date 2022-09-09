@@ -323,7 +323,7 @@ class IncrementalSyncCommand(BaseCommand):
                 self.get_access_token(is_acquire_for_client=True)
             )
             calendar_permissions = sync_microsoft_teams.fetch_calendars(
-                calendar_object, ids_list, start_time, end_time, False)
+                calendar_object, ids_list, start_time, end_time)
 
             if self.config.get_value("enable_document_permission"):
                 sync_microsoft_teams.sync_permissions(calendar_permissions)

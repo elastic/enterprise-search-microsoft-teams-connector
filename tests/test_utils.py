@@ -157,3 +157,35 @@ def test_split_documents_into_equal_chunks():
     source_chunk = math.ceil(len(document) / no_of_thread)
     target_chunk = utils.split_documents_into_equal_chunks(document, no_of_thread)
     assert len(target_chunk) == source_chunk
+
+
+def test_split_documents_into_equal_bytes():
+    """Tests split functionality based on size"""
+    # Setup
+    document_to_split = [
+        {"name": "dummy1", "body": "dummy1_body"},
+        {"name": "dummy2", "body": "dummy2_body"},
+        {"name": "dummy3", "body": "dummy3_body"},
+        {"name": "dummy4", "body": "dummy4_body"},
+        {"name": "dummy5", "body": "dummy5_body"},
+        {"name": "dummy6", "body": "dummy6_body"},
+    ]
+    allowed_size = 140
+    expected_output = [
+        [
+            {"name": "dummy1", "body": "dummy1_body"},
+            {"name": "dummy2", "body": "dummy2_body"},
+            {"name": "dummy3", "body": "dummy3_body"},
+        ],
+        [
+            {"name": "dummy4", "body": "dummy4_body"},
+            {"name": "dummy5", "body": "dummy5_body"},
+            {"name": "dummy6", "body": "dummy6_body"},
+        ],
+    ]
+
+    # Execute
+    returned_document = utils.split_documents_into_equal_bytes(document_to_split, allowed_size)
+
+    # Assert
+    assert returned_document == expected_output
