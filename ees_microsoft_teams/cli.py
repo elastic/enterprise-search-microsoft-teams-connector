@@ -16,6 +16,7 @@ from argparse import ArgumentParser
 
 from .bootstrap_command import BootstrapCommand
 from .full_sync_command import FullSyncCommand
+from .incremental_sync_command import IncrementalSyncCommand
 
 CMD_BOOTSTRAP = 'bootstrap'
 CMD_FULL_SYNC = 'full-sync'
@@ -25,6 +26,7 @@ CMD_DELETION_SYNC = 'deletion-sync'
 commands = {
     CMD_BOOTSTRAP: BootstrapCommand,
     CMD_FULL_SYNC: FullSyncCommand,
+    CMD_INCREMENTAL_SYNC: IncrementalSyncCommand,
 }
 
 

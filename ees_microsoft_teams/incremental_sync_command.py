@@ -3,10 +3,13 @@
 # or more contributor license agreements. Licensed under the Elastic License 2.0;
 # you may not use this file except in compliance with the Elastic License 2.0.
 #
-"""This module allows to run a full sync against a Microsoft Teams.
+"""This module allows to run an incremental sync against a Microsoft Teams Server instance.
 
-    It will attempt to sync absolutely all documents that are available in the
-    third-party system and ingest them into Enterprise Search instance.
+    It will attempt to sync documents that have changed or have been added in the
+    third-party system recently and ingest them into Enterprise Search instance.
+
+    Recency is determined by the time when the last successful incremental or full job
+    was ran.
 """
 
 from . import constant
@@ -16,14 +19,11 @@ from .sync_enterprise_search import SyncEnterpriseSearch
 from .sync_microsoft_teams import SyncMicrosoftTeams
 from .ingest_command import IngestCommand
 
-INDEXING_TYPE = "full"
+INDEXING_TYPE = "incremental"
 
 
-class FullSyncCommand(IngestCommand):
-    """This class starts execution of full sync feature.
-        Full sync fetches the documents from the start time configured in config file till the current time
-        from the Microsoft Teams and indexes them into the Workplace Search.
-    """
+class IncrementalSyncCommand(IngestCommand):
+    """This class start executions of incremental sync feature."""
 
     def start_producer(self, queue):
         """This method starts async calls for the producer which is responsible for fetching documents from
@@ -36,20 +36,24 @@ class FullSyncCommand(IngestCommand):
         sync_microsoft_teams = SyncMicrosoftTeams(
             INDEXING_TYPE, self.config, self.logger, queue
         )
-        start_time = self.config.get_value("start_time")
-        end_time = constant.CURRENT_TIME
 
-        if self.config.get_value("enable_document_permission"):
-            self.remove_object_permissions(end_time)
-        else:
-            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
+        checkpoint = Checkpoint(self.logger, self.config)
+        teams_start_time, teams_end_time = checkpoint.get_checkpoint(
+            constant.CURRENT_TIME, "teams"
+        )
+        user_chats_start_time, user_chats_end_time = checkpoint.get_checkpoint(
+            constant.CURRENT_TIME, "user_chats"
+        )
+        calendar_start_time, calendar_end_time = checkpoint.get_checkpoint(
+            constant.CURRENT_TIME, "calendar"
+        )
 
         self.create_jobs_for_teams(
             INDEXING_TYPE,
             sync_microsoft_teams,
             thread_count,
-            start_time,
-            end_time,
+            teams_start_time,
+            teams_end_time,
             queue,
         )
 
@@ -57,16 +61,16 @@ class FullSyncCommand(IngestCommand):
             INDEXING_TYPE,
             sync_microsoft_teams,
             thread_count,
-            start_time,
-            end_time,
+            user_chats_start_time,
+            user_chats_end_time,
             queue
         )
 
         self.create_jobs_for_calendars(
             INDEXING_TYPE,
             sync_microsoft_teams,
-            start_time,
-            end_time,
+            calendar_start_time,
+            calendar_end_time,
             queue
         )
 
@@ -88,11 +92,6 @@ class FullSyncCommand(IngestCommand):
         self.create_and_execute_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
 
-        # The reason for adding all the permissions in every run rather than appending the latest changes is
-        # because in the Enterprise Search version>=8, there is no endpoint to append permissions
-        if sync_es.permission_list_to_index:
-            sync_es.workplace_add_permission(sync_es.permission_list_to_index)
-
         checkpoint = Checkpoint(self.logger, self.config)
         for checkpoint_data in sync_es.checkpoint_list:
             checkpoint.set_checkpoint(checkpoint_data["checkpoint_time"], checkpoint_data["indexing_type"],
@@ -105,4 +104,4 @@ class FullSyncCommand(IngestCommand):
 
         self.start_producer(queue)
         self.start_consumer(queue)
-        self.logger.info("Completed Full sync")
+        self.logger.info("Completed Incremental sync")

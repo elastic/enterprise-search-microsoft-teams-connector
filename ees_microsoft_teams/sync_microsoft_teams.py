@@ -7,6 +7,8 @@
 
     It's possible to run full syncs and incremental syncs with this module.
 """
+import csv
+import os
 
 from . import constant
 from .local_storage import LocalStorage
@@ -23,6 +25,32 @@ class SyncMicrosoftTeams:
         self.indexing_type = indexing_type
         self.local_storage = LocalStorage(config)
         self.queue = queue
+
+    def add_permissions_to_queue(self, user, roles):
+        """This method is used to map the Microsoft Teams users to workplace search
+        users and responsible to call the user permissions indexer method
+        :param user: User for indexing the permissions
+        :param roles: User roles
+        """
+        rows = {}
+        mapping_sheet_path = self.config.get_value("microsoft_teams.user_mapping")
+        if (
+            mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0
+        ):
+            with open(mapping_sheet_path, encoding="UTF-8") as file:
+                for row in csv.reader(file):
+                    rows[row[0]] = row[1]
+        user_name = rows.get(user, user)
+        permission_dict = {"user": user_name, "roles": roles}
+        self.queue.append_to_queue("permissions", permission_dict)
+
+    def fetch_user_chats(self, chats_obj, ids_list):
+        """Fetches user chats from Microsoft Teams
+        :param chats_obj: Chats class object to fetch the chats
+        :param ids_list: Document ids list from respective doc id file
+        """
+        user_permissions, chats = chats_obj.get_user_chats(ids_list)
+        return user_permissions, chats
 
     def fetch_user_chat_messages(
         self,
