@@ -10,17 +10,16 @@
 """
 
 from . import constant
-from .base_command import BaseCommand
 from .checkpointing import Checkpoint
 from .connector_queue import ConnectorQueue
 from .sync_enterprise_search import SyncEnterpriseSearch
 from .sync_microsoft_teams import SyncMicrosoftTeams
-from .thread_jobs import ThreadJobs
+from .ingest_command import IngestCommand
 
 INDEXING_TYPE = "full"
 
 
-class FullSyncCommand(BaseCommand):
+class FullSyncCommand(IngestCommand):
     """This class starts execution of full sync feature.
         Full sync fetches the documents from the start time configured in config file till the current time
         from the Microsoft Teams and indexes them into the Workplace Search.
@@ -40,8 +39,7 @@ class FullSyncCommand(BaseCommand):
         start_time = self.config.get_value("start_time")
         end_time = constant.CURRENT_TIME
 
-        thread_jobs = ThreadJobs(self.logger, self.config, self.local_storage)
-        thread_jobs.create_jobs_for_teams(
+        self.create_jobs_for_teams(
             INDEXING_TYPE,
             sync_microsoft_teams,
             thread_count,
@@ -50,7 +48,7 @@ class FullSyncCommand(BaseCommand):
             queue,
         )
 
-        thread_jobs.create_jobs_for_user_chats(
+        self.create_jobs_for_user_chats(
             INDEXING_TYPE,
             sync_microsoft_teams,
             thread_count,
@@ -59,7 +57,7 @@ class FullSyncCommand(BaseCommand):
             queue
         )
 
-        thread_jobs.create_jobs_for_calendars(
+        self.create_jobs_for_calendars(
             INDEXING_TYPE,
             sync_microsoft_teams,
             start_time,

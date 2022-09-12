@@ -10,14 +10,9 @@ from .msal_access_token import MSALAccessToken
 from .utils import split_documents_into_equal_chunks
 
 
-class ThreadJobs(BaseCommand):
+class IngestCommand(BaseCommand):
     """ This class creates the multithreading jobs for Teams, User Chats and Calendars objects
     """
-    def __init__(self, logger, config, local_storage):
-        self.logger = logger
-        self.config = config
-        self.local_storage = local_storage
-
     def create_jobs_for_teams(
         self,
         indexing_type,
