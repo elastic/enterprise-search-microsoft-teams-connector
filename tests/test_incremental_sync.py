@@ -28,6 +28,7 @@ def test_start_producer():
     args.config_file = CONFIG_FILE
     incremental_sync_obj = IncrementalSyncCommand(args)
     incremental_sync_obj.create_and_execute_jobs = Mock(return_value=[])
+    incremental_sync_obj.remove_object_permissions = Mock()
     incremental_sync_obj.create_jobs_for_teams = Mock()
     incremental_sync_obj.create_jobs_for_user_chats = Mock()
     incremental_sync_obj.create_jobs_for_calendars = Mock()

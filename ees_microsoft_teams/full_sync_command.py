@@ -8,6 +8,7 @@
     It will attempt to sync absolutely all documents that are available in the
     third-party system and ingest them into Enterprise Search instance.
 """
+from collections import defaultdict
 
 from . import constant
 from .checkpointing import Checkpoint
@@ -91,7 +92,10 @@ class FullSyncCommand(IngestCommand):
         # The reason for adding all the permissions in every run rather than appending the latest changes is
         # because in the Enterprise Search version>=8, there is no endpoint to append permissions
         if sync_es.permission_list_to_index:
-            sync_es.workplace_add_permission(sync_es.permission_list_to_index)
+            member_dict = defaultdict(list)
+            for permission_dict in sync_es.permission_list_to_index:
+                member_dict[permission_dict["user"]].extend(permission_dict["roles"])
+            sync_es.workplace_add_permission(member_dict)
 
         checkpoint = Checkpoint(self.logger, self.config)
         for checkpoint_data in sync_es.checkpoint_list:

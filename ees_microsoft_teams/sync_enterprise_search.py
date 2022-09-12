@@ -95,9 +95,9 @@ class SyncEnterpriseSearch:
         :param permission: Permission that needs to be provided to the user
         """
         try:
-            for user_permission in permission_dict:
+            for user, roles in permission_dict.items():
                 user_permissions = split_documents_into_equal_chunks(
-                    user_permission["roles"], PERMISSION_LIMIT
+                    roles, PERMISSION_LIMIT
                 )
                 ws_permissions = self.workplace_search_custom_client.list_permissions()
                 for permissions in user_permissions:
@@ -111,21 +111,21 @@ class SyncEnterpriseSearch:
                                     "attribute_value"
                                 ]
                             )
-                            if user_permission["user"] == user_name:
+                            if user == user_name:
                                 if list_permission["permissions"]:
                                     permissions.extend(list_permission["permissions"])
 
                     self.workplace_search_custom_client.add_permissions(
-                        user_permission["user"],
+                        user,
                         list(set(permissions)),
                     )
                 self.logger.info(
-                    f"Successfully indexed the permissions for {user_permission['user']} user into the "
+                    f"Successfully indexed the permissions for {user} user into the "
                     "Workplace Search"
                 )
         except Exception as exception:
             self.logger.exception(
-                f"Error while indexing the permissions for user:{user_permission['user']} to the workplace. "
+                f"Error while indexing the permissions to the workplace."
                 f"Error: {exception}"
             )
             raise exception
