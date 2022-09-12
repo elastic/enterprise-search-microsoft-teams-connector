@@ -1,7 +1,7 @@
 import argparse
 import logging
 import os
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from ees_microsoft_teams.configuration import Configuration  # noqa
 from ees_microsoft_teams.connector_queue import ConnectorQueue
@@ -20,20 +20,24 @@ def settings():
     return configuration, logger
 
 
-def test_start_producer():
-    """Test that start producer process for incremental sync."""
+@patch("ees_microsoft_teams.incremental_sync_command.ThreadJobs")
+def test_start_producer(mock_thread_jobs):
+    """Test that start producer process for full sync."""
+    # Setup
     args = argparse.Namespace()
     args.name = "dummy"
     args.config_file = CONFIG_FILE
     incremental_sync_obj = IncrementalSyncCommand(args)
     incremental_sync_obj.create_and_execute_jobs = Mock(return_value=[])
-    incremental_sync_obj.create_jobs_for_teams = Mock()
-    incremental_sync_obj.create_jobs_for_user_chats = Mock()
-    incremental_sync_obj.create_jobs_for_calendars = Mock()
+    mock_thread_jobs.return_value = Mock()
+    mock_thread_jobs.create_jobs_for_teams = Mock()
+    mock_thread_jobs.create_jobs_for_user_chats = Mock()
+    mock_thread_jobs.create_jobs_for_calendars = Mock()
     _, logger = settings()
     queue = ConnectorQueue(logger)
+
+    # Execute
     incremental_sync_obj.start_producer(queue)
-    incremental_sync_obj.create_jobs_for_calendars.assert_called_once == 1
 
 
 def test_start_consumer(caplog):

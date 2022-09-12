@@ -1,7 +1,7 @@
 import argparse
 import logging
 import os
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from ees_microsoft_teams.configuration import Configuration  # noqa
 from ees_microsoft_teams.connector_queue import ConnectorQueue
@@ -20,7 +20,8 @@ def settings():
     return configuration, logger
 
 
-def test_start_producer():
+@patch("ees_microsoft_teams.full_sync_command.ThreadJobs")
+def test_start_producer(mock_thread_jobs):
     """Test that start producer process for full sync."""
     # Setup
     args = argparse.Namespace()
@@ -28,7 +29,10 @@ def test_start_producer():
     args.config_file = CONFIG_FILE
     full_sync_obj = FullSyncCommand(args)
     full_sync_obj.create_and_execute_jobs = Mock(return_value=[])
-    full_sync_obj.create_jobs_for_teams = Mock()
+    mock_thread_jobs.return_value = Mock()
+    mock_thread_jobs.create_jobs_for_teams = Mock()
+    mock_thread_jobs.create_jobs_for_user_chats = Mock()
+    mock_thread_jobs.create_jobs_for_calendars = Mock()
     _, logger = settings()
     queue = ConnectorQueue(logger)
 
