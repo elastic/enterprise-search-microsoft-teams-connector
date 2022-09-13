@@ -187,6 +187,20 @@ class EnterpriseSearchWrapper:
         except Exception as exception:
             self.logger.error(f"Could not create a content source, Error {exception}")
 
+    def delete_documents(self, document_ids):
+        """Deletes a list of documents from a custom content source
+        :param document_ids: list of document ids to be deleted from Enterprise Search
+        """
+        try:
+            self.workplace_search_client.delete_documents(
+                content_source_id=self.ws_source,
+                document_ids=document_ids,
+            )
+        except Exception as exception:
+            self.logger.exception(
+                f"Error while checking for deleted files. Error: {exception}"
+            )
+
     def index_documents(self, documents, timeout):
         """Indexes one or more new documents into a custom content source, or updates one
         or more existing documents

@@ -53,14 +53,7 @@ class SyncMicrosoftTeams:
         return user_permissions, chats
 
     def fetch_user_chat_messages(
-        self,
-        chats_obj,
-        ids_list,
-        user_drive,
-        start_time,
-        end_time,
-        user_attachment_token,
-        chats
+        self, chats_obj, ids_list, user_drive, start_time, end_time, user_attachment_token, chats
     ):
         """Fetches user chat messages and other chat objects from Microsoft Teams
         :param chats: List of chats to fetch its children objects
@@ -75,6 +68,22 @@ class SyncMicrosoftTeams:
             ids_list, user_drive, chats, start_time, end_time, user_attachment_token
         )
         self.queue.append_to_queue(constant.USER_CHATS_MESSAGE, documents)
+
+    def fetch_user_chat_messages_for_deletion(
+        self, chats_obj, ids_list, user_drive, start_time, end_time, user_attachment_token, chats
+    ):
+        """Fetches user chat messages and other chat objects from Microsoft Teams for deletion
+        :param chats: List of chats to fetch its children objects
+        :param chats_obj: Chats class object to fetch the chats
+        :param ids_list: Document ids list from respective doc id file
+        :param user_drive: User Drive to store user related details
+        :param start_time: Start time for fetching the user chats data
+        :param end_time: End time for fetching the user chats data
+        :param user_attachment_token: Access token for fetching the user chat attachments
+        """
+        return chats_obj.get_user_chat_messages(
+            ids_list, user_drive, chats, start_time, end_time, user_attachment_token
+        )
 
     def fetch_teams(self, teams_obj, ids_list):
         """Fetches teams from Microsoft Teams
@@ -97,11 +106,19 @@ class SyncMicrosoftTeams:
             self.queue.append_to_queue(constant.CHANNELS, channel_documents)
         return channels
 
+    def fetch_channels_for_deletion(self, teams_obj, teams):
+        """Fetches channels from Microsoft Teams for deletion
+        :param teams: List of teams to fetch the channels
+        :param teams_obj: Class object to fetch teams and its objects
+        """
+        channels, channel_documents = teams_obj.get_team_channels(teams, [])
+        return [{"channels": channels, "channel_documents": channel_documents}]
+
     def fetch_channel_messages(self, teams_obj, start_time, end_time, ids_list, channels):
         """Fetches channel messages from Microsoft Teams
         :param teams_obj: Class object to fetch teams and its objects
-        :param start_time: Start time for fetching channel messages and tabs
-        :param end_time: End time for fetching channel messages and tabs
+        :param start_time: Start time for fetching channel messages
+        :param end_time: End time for fetching channel messages
         :param ids_list: Document ids list from respective doc id file
         :param channels: List of channels to fetch channel messages from Microsoft Teams
         """
@@ -109,6 +126,18 @@ class SyncMicrosoftTeams:
             channels, ids_list, start_time, end_time
         )
         self.queue.append_to_queue(constant.CHANNEL_MESSAGES, channel_message_documents)
+
+    def fetch_channel_messages_for_deletion(self, teams_obj, start_time, end_time, ids_list, channels):
+        """Fetches channel messages from Microsoft Teams for deletion
+        :param channels: List of channels to fetch channel messages from Microsoft Teams
+        :param teams_obj: Class object to fetch teams and its objects
+        :param start_time: Start time for fetching channel messages
+        :param end_time: End time for fetching channel messages
+        :param ids_list: Document ids list from respective doc id file
+        """
+        return teams_obj.get_channel_messages(
+            channels, ids_list, start_time, end_time
+        )
 
     def fetch_channel_tabs(self, teams_obj, start_time, end_time, ids_list, channels):
         """Fetches channel tabs from Microsoft Teams
@@ -123,6 +152,18 @@ class SyncMicrosoftTeams:
         )
         self.queue.append_to_queue(constant.CHANNEL_TABS, tab_documents)
 
+    def fetch_channel_tabs_for_deletion(self, teams_obj, start_time, end_time, ids_list, channels):
+        """Fetches channel tabs from Microsoft Teams for deletion
+        :param channels: List of channels to fetch channel messages and tabs from Microsoft Teams
+        :param teams_obj: Class object to fetch teams and its objects
+        :param start_time: Start time for fetching channel messages and tabs
+        :param end_time: End time for fetching channel messages and tabs
+        :param ids_list: Document ids list from respective doc id file
+        """
+        return teams_obj.get_channel_tabs(
+            channels, ids_list, start_time, end_time
+        )
+
     def fetch_channel_documents(self, teams_obj, start_time, end_time, ids_list, teams):
         """Fetches channel documents from Microsoft Teams
         :param teams: List of teams to fetch channels from Microsoft Teams
@@ -135,6 +176,18 @@ class SyncMicrosoftTeams:
             teams, ids_list, start_time, end_time
         )
         self.queue.append_to_queue(constant.CHANNEL_DOCUMENTS, channel_documents)
+
+    def fetch_channel_documents_for_deletion(self, teams_obj, start_time, end_time, ids_list, teams):
+        """Fetches channel documents from Microsoft Teams for deletion
+        :param teams: List of teams to fetch channels from Microsoft Teams
+        :param teams_obj: Class object to fetch teams and its objects
+        :param start_time: Start time for fetching channel documents
+        :param end_time: End time for fetching channel documents
+        :param ids_list: Document ids list from respective doc id file
+        """
+        return teams_obj.get_channel_documents(
+            teams, ids_list, start_time, end_time
+        )
 
     def fetch_calendars(self, calendar_obj, ids_list, start_time, end_time):
         """Fetches calendar events from Microsoft Teams
