@@ -88,11 +88,20 @@ class SyncEnterpriseSearch:
                                  f"{count}." if total_inserted_record_dict else f"Total 0 {type} "
                                  f"indexed out of {count}")
 
+    def delete_documents(self, final_deleted_list):
+        """Deletes the documents of specified ids from Workplace Search
+        :param final_deleted_list: List of ids to delete the documents from Workplace Search
+        """
+        for index in range(0, len(final_deleted_list), constant.BATCH_SIZE):
+            final_list = final_deleted_list[index: index + constant.BATCH_SIZE]
+            # Logic to delete documents from the workplace search
+            self.workplace_search_custom_client.delete_documents(final_list)
+
     def perform_sync(self):
         """Pull documents from the queue and synchronize it to the Enterprise Search."""
         signal_open = True
         while signal_open:
-            documents_to_index = []
+            documents_to_index, deleted_document = [], []
             while (
                     len(documents_to_index) < constant.BATCH_SIZE
                     and len(str(documents_to_index)) < self.max_allowed_bytes
@@ -104,6 +113,8 @@ class SyncEnterpriseSearch:
                 elif documents.get("type") == "checkpoint":
                     self.checkpoint_list.append(documents)
                     break
+                elif documents.get("type") == "deletion":
+                    deleted_document.extend(documents.get("data"))
                 else:
                     documents_to_index.extend(documents.get("data"))
             if documents_to_index:
@@ -115,5 +126,11 @@ class SyncEnterpriseSearch:
                         chunk, self.max_allowed_bytes
                     ):
                         self.index_documents(chunk)
+            if deleted_document:
+                deleted_document = list(unique_everseen(deleted_document))
+                for chunk in split_documents_into_equal_chunks(
+                    deleted_document, constant.BATCH_SIZE
+                ):
+                    self.delete_documents(chunk)
             if not signal_open:
                 break
