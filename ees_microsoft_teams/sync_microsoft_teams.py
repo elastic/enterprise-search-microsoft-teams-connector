@@ -7,6 +7,8 @@
 
     It's possible to run full syncs and incremental syncs with this module.
 """
+import csv
+import os
 
 from . import constant
 from .local_storage import LocalStorage
@@ -23,6 +25,24 @@ class SyncMicrosoftTeams:
         self.indexing_type = indexing_type
         self.local_storage = LocalStorage(config)
         self.queue = queue
+
+    def add_permissions_to_queue(self, user, roles):
+        """This method is used to map the Microsoft Teams users to workplace search
+        users and responsible to call the user permissions indexer method
+        :param user: User for indexing the permissions
+        :param roles: User roles
+        """
+        rows = {}
+        mapping_sheet_path = self.config.get_value("microsoft_teams.user_mapping")
+        if (
+            mapping_sheet_path and os.path.exists(mapping_sheet_path) and os.path.getsize(mapping_sheet_path) > 0
+        ):
+            with open(mapping_sheet_path, encoding="UTF-8") as file:
+                for row in csv.reader(file):
+                    rows[row[0]] = row[1]
+        user_name = rows.get(user, user)
+        permission_dict = {"user": user_name, "roles": roles}
+        self.queue.append_to_queue("permissions", permission_dict)
 
     def fetch_user_chats(self, chats_obj, ids_list):
         """Fetches user chats from Microsoft Teams
@@ -181,3 +201,11 @@ class SyncMicrosoftTeams:
         )
         self.queue.append_to_queue(constant.CALENDAR, documents)
         return calendar_permissions
+
+    def sync_permissions(self, user_permissions):
+        """Sync permissions of Microsoft Objects to Workplace Search
+        :param user_permissions: Dictionary having the user permissions to be indexed into
+            Workplace Search
+        """
+        for user, permissions in user_permissions.items():
+            self.add_permissions_to_queue(user, permissions)

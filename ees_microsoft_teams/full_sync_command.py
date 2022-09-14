@@ -8,6 +8,7 @@
     It will attempt to sync absolutely all documents that are available in the
     third-party system and ingest them into Enterprise Search instance.
 """
+from collections import defaultdict
 
 from . import constant
 from .checkpointing import Checkpoint
@@ -38,6 +39,11 @@ class FullSyncCommand(IngestCommand):
         )
         start_time = self.config.get_value("start_time")
         end_time = constant.CURRENT_TIME
+
+        if self.config.get_value("enable_document_permission"):
+            self.remove_object_permissions(end_time)
+        else:
+            self.logger.info("'enable_document_permission' is disabled, skipping permission removal")
 
         self.create_jobs_for_teams(
             INDEXING_TYPE,
@@ -82,6 +88,14 @@ class FullSyncCommand(IngestCommand):
 
         self.create_and_execute_jobs(thread_count, sync_es.perform_sync, (), [])
         self.logger.info("Completed indexing of the Microsoft Teams objects")
+
+        # The reason for adding all the permissions in every run rather than appending the latest changes is
+        # because in the Enterprise Search version>=8, there is no endpoint to append permissions
+        if sync_es.permission_list_to_index:
+            member_dict = defaultdict(list)
+            for permission_dict in sync_es.permission_list_to_index:
+                member_dict[permission_dict["user"]].extend(permission_dict["roles"])
+            sync_es.workplace_add_permission(member_dict)
 
         checkpoint = Checkpoint(self.logger, self.config)
         for checkpoint_data in sync_es.checkpoint_list:
