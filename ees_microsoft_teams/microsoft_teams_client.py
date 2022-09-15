@@ -8,10 +8,9 @@
 from . import constant
 from .microsoft_teams_requests import (
     MSTeamsRequests,
-    TooManyRequestException,
     QueryBuilder,
 )
-from .utils import retry, get_data_from_http_response
+from .utils import get_data_from_http_response
 
 
 class MSTeamsClient(MSTeamsRequests):
@@ -24,7 +23,7 @@ class MSTeamsClient(MSTeamsRequests):
         self.logger = logger
         self.config = config
         self.query_builder = QueryBuilder()
-        self.retry_count = int(config.get_value("retry_count"))
+        self.retry_count = self.config.get_value('retry_count')
 
     def get_teams(self, next_url):
         """ Get teams from the Microsoft Teams with the support of pagination and
@@ -46,7 +45,7 @@ class MSTeamsClient(MSTeamsRequests):
 
             except Exception as unknown_exception:
                 self.logger.exception(
-                    f"Error while fetching the Microsoft Team. Error: {unknown_exception}"
+                    f"Error while fetching teams from the Microsoft Teams. Error: {unknown_exception}"
                 )
 
         parsed_response = get_data_from_http_response(
@@ -58,7 +57,6 @@ class MSTeamsClient(MSTeamsRequests):
 
         return parsed_response
 
-    @retry(exception_list=(TooManyRequestException))
     def get_channels(self, next_url):
         """ Get channels from the Microsoft Teams
             :param next_url: URL to invoke Graph API call
@@ -75,7 +73,7 @@ class MSTeamsClient(MSTeamsRequests):
 
         except Exception as unknown_exception:
             self.logger.exception(
-                f"Error while fetching the Microsoft Team. Error: {unknown_exception}"
+                f"Error while fetching channels from the Microsoft Teams. Error: {unknown_exception}"
             )
 
     def get_channel_messages(self, next_url, start_time, end_time, channel_name="", is_message_replies=False):
@@ -108,7 +106,8 @@ class MSTeamsClient(MSTeamsRequests):
                     next_url = None
 
             except Exception as unknown_exception:
-                self.logger.exception(f"Error while fetching the Microsoft Team. Error: {unknown_exception}")
+                self.logger.exception(f"Error while fetching channel messages from the Microsoft Teams. "
+                                      f"Error: {unknown_exception}")
 
         if is_message_replies:
             return response_list
