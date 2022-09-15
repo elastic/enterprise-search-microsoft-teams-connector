@@ -56,6 +56,7 @@ class MSTeamsChannels:
             for workplace_search_field, microsoft_teams_field in team_schema.items():
                 team_data[workplace_search_field] = team[microsoft_teams_field]
 
+            team_data["_allow_permissions"] = []
             if self.is_permission_sync_enabled:
                 team_data["_allow_permissions"] = [team["id"]]
 
@@ -127,6 +128,7 @@ class MSTeamsChannels:
                 for workplace_search_field, microsoft_teams_field in channel_schema.items():
                     channel_data[workplace_search_field] = channel[microsoft_teams_field]
 
+                channel_data["_allow_permissions"] = []
                 if self.is_permission_sync_enabled:
                     channel_data["_allow_permissions"] = [team_id]
 
@@ -221,6 +223,8 @@ class MSTeamsChannels:
                         constant.CHANNEL_MESSAGES, channel_id, team_id)
                     for workplace_search_field, microsoft_teams_field in channel_message_schema.items():
                         message_data[workplace_search_field] = message[microsoft_teams_field]
+
+                    message_data["_allow_permissions"] = []
                     if self.is_permission_sync_enabled:
                         message_data["_allow_permissions"] = [team_id]
                     replies_data = self.get_message_replies(
@@ -336,6 +340,7 @@ class MSTeamsChannels:
                             else:
                                 tabs_data[workplace_search_field] = tab[microsoft_teams_field]
 
+                        tabs_data["_allow_permissions"] = []
                         if self.is_permission_sync_enabled:
                             tabs_data["_allow_permissions"] = [team_id]
 
@@ -353,7 +358,8 @@ class MSTeamsChannels:
         """
         documents = []
         self.logger.debug(
-            f"Fetching channel documents for the interval of start time: {start_time} and end time: {end_time}.")
+            f"Fetching channel documents for the interval of start time: {start_time} and end time: {end_time}."
+        )
 
         for team in teams:
             team_id = team["id"]
