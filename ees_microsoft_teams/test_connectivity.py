@@ -151,8 +151,8 @@ def test_ingestion(settings):
             break
         except Exception as exception:
             print(
-                f"[Fail] Error while ingesting document to the workplace host {enterprise_search_host}. Retry Count: \
-                    {retry}. Error: {exception}")
+                f"[Fail] Error while ingesting document to the workplace host {enterprise_search_host}. Retry Count: "
+                f"{retry}. Error: {exception}")
             # This condition is to avoid sleeping for the last time
             if retry < retry_count:
                 time.sleep(2 ** retry)
@@ -180,8 +180,8 @@ def test_ingestion(settings):
                     break
             except Exception as exception:
                 print(
-                    f"[Fail] Error while deleting document id 1234 from the workplace host {enterprise_search_host}. \
-                    Retry Count: {retry}. Error: {exception}")
+                    f"[Fail] Error while deleting document id 1234 from the workplace host {enterprise_search_host}. "
+                    f"Retry Count: {retry}. Error: {exception}")
                 # This condition is to avoid sleeping for the last time
                 if retry < retry_count:
                     time.sleep(2 ** retry)
