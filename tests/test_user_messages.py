@@ -160,3 +160,79 @@ def test_get_user_tabs(source_tabs, mock_tabs_document):
     user_message_obj.client.get_user_chat_tabs = Mock(return_value=mock_tabs_document)
     target_tabs = user_message_obj.fetch_tabs("123", [1, 2, 3], "2020-12-08T07:17:29.748Z", "2020-12-08T07:17:29.748Z")
     assert source_tabs == target_tabs
+
+
+@pytest.mark.parametrize(
+    "chat_data, mock_chat_messages_document, source_documents",
+    [
+        (
+            [{
+                'id': '19:meeting_MjdhNjM4YzUtYzExZi00OTFkLTkzZTAtNTVlNmZmMDhkNGU2@thread.v2',
+                'topic': 'Meeting chat sample',
+                'createdDateTime': '2020-12-08T23:53:05.801Z',
+                'lastUpdatedDateTime': '2020-12-08T23:58:32.511Z',
+                'chatType': 'meeting',
+                "webUrl": "http://test.com",
+                'members': [{
+                    '@odata.type': '#microsoft.graph.aadUserConversationMember',
+                    'id': '123=',
+                    'roles': [],
+                    'displayName': 'Tony Stark',
+                    'userId': '4595d2f2-7b31-446c-84fd-9b795e63114b',
+                    'email': 'starkt@teamsgraph.onmicrosoft.com'
+                }]
+            }],
+            [
+                {
+                    "id": "1616964509832",
+                    "messageType": "message",
+                    "createdDateTime": "2021-03-28T20:48:29.832Z",
+                    "lastModifiedDateTime": "2021-03-28T20:48:29.832Z",
+                    "deletedDateTime": None,
+                    "subject": "hi",
+                    "summary": "it is subject",
+                    "chatId": "19:2da4c29f6d7041eca70b638b43d45437@thread.v2",
+                    "eventDetail": None,
+                    "from": {
+                        "user": {
+                            "id": "8ea0e38b-efb3-4757-924a-5f94061cf8c2",
+                            "displayName": "Robin Kline",
+                            "userIdentityType": "aadUser"
+                        }
+                    },
+                    "body": {
+                        "contentType": "text",
+                        "content": "Hello world"
+                    },
+                    "attachments": [],
+                    "mentions": [],
+                    "reactions": []
+                },
+            ],
+            [{
+                'type': 'User Chat Messages',
+                'id': '1616964509832',
+                'last_updated': '2021-03-28T20:48:29.832Z',
+                'created_at': '2021-03-28T20:48:29.832Z',
+                'title': 'Meeting chat sample',
+                'body': 'Robin Kline - Hello world',
+                'url': 'http://test.com',
+                '_allow_permissions': ['19:meeting_MjdhNjM4YzUtYzExZi00OTFkLTkzZTAtNTVlNmZmMDhkNGU2@thread.v2']
+            }]
+        )
+    ],
+)
+def test_get_user_chat_messages(chat_data, mock_chat_messages_document, source_documents):
+    """Test the fetching of user messages for a chat"""
+    # Setup
+    user_message_obj = create_user_message_obj()
+
+    # Execute
+    user_message_obj.client.get_user_chat_messages = Mock(return_value=mock_chat_messages_document)
+    user_message_obj.fetch_tabs = Mock(return_value=[])
+    target_documents = user_message_obj.get_user_chat_messages(
+        [1, 2], {}, chat_data, '2020-12-08T23:53:05.801Z', '2020-12-08T23:53:05.801Z', 'token'
+    )
+
+    # Assert
+    assert source_documents == target_documents

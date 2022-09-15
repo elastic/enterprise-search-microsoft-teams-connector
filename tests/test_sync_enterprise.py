@@ -176,3 +176,24 @@ def test_add_permission_to_workplace(caplog):
 
     # Assert
     mock.enterprise_obj.workplace_add_permission.assert_called()
+
+
+@pytest.mark.parametrize(
+    "deleted_ids",
+    [
+        (
+            ["844424930334011", "543528180028451862"],
+        )
+    ],
+)
+def test_sync_deleted_documents(deleted_ids):
+    """Test that delete documents from Enterprise Search."""
+    # Setup
+    enterprise_obj = create_sync_enterprise_obj()
+    enterprise_obj.workplace_search_custom_client.workplace_search_client.delete_documents = Mock(
+        return_value=True
+    )
+
+    # Execute and Assert
+    enterprise_obj.delete_documents(deleted_ids)
+    enterprise_obj.workplace_search_custom_client.workplace_search_client.delete_documents.assert_called()
