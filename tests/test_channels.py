@@ -13,9 +13,9 @@ from unittest.mock import Mock
 
 import pytest
 from ees_microsoft_teams.configuration import Configuration
+from ees_microsoft_teams.local_storage import LocalStorage
 from ees_microsoft_teams.microsoft_teams_channels import MSTeamsChannels
 from requests.models import Response
-from ees_microsoft_teams.local_storage import LocalStorage
 
 CONFIG_FILE = os.path.join(
     os.path.join(os.path.dirname(__file__), "config"),
@@ -42,28 +42,20 @@ def create_channel_obj():
 
 
 @pytest.mark.parametrize(
-    "mock_teams, teams_schema_field, source_teams",
+    "mock_teams, source_teams",
     [
         (
-            {
-                "value": [
-                    {
-                        "id": "45b7d2e7-b882-4a80-ba97-10b7a63b8fa4",
-                        "createdDateTime": "2018-12-22T02:21:05Z",
-                        "description": "Self help community for golf",
-                        "displayName": "Golf Assist",
-                        "mail": "golfassist@contoso.com",
-                        "mailNickname": "golfassist",
-                        "renewedDateTime": "2018-12-22T02:21:05Z",
-                    },
-                ]
-            },
-            {
-                'id': 'id',
-                'title': 'displayName',
-                'body': 'description',
-                'created_at': 'createdDateTime'
-            },
+            [
+                {
+                    "id": "45b7d2e7-b882-4a80-ba97-10b7a63b8fa4",
+                    "createdDateTime": "2018-12-22T02:21:05Z",
+                    "description": "Self help community for golf",
+                    "displayName": "Golf Assist",
+                    "mail": "golfassist@contoso.com",
+                    "mailNickname": "golfassist",
+                    "renewedDateTime": "2018-12-22T02:21:05Z",
+                },
+            ],
             [{
                 'type': 'Teams',
                 'id': '45b7d2e7-b882-4a80-ba97-10b7a63b8fa4',
@@ -75,12 +67,11 @@ def create_channel_obj():
         )
     ],
 )
-def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
+def test_get_all_teams(mock_teams, source_teams):
     """Test get all teams"""
     # Setup
     channel_obj = create_channel_obj()
-    channel_obj.get_schema_fields = Mock(return_value=teams_schema_field)
-    channel_obj.client.get = Mock(return_value=mock_teams)
+    channel_obj.client.get_teams = Mock(return_value=mock_teams)
 
     # Execute
     target_teams = channel_obj.get_all_teams([1, 2])
@@ -93,27 +84,24 @@ def test_get_all_teams(mock_teams, teams_schema_field, source_teams):
     "mock_teams",
     [
         (
-            {
-                "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups",
-                "value": [
-                    {
-                        "id": "45b7d2e7-b882-4a80-ba97-10b7a63b8fa4",
-                        "deletedDateTime": None,
-                        "createdDateTime": "2018-12-22T02:21:05Z",
-                        "description": "Self help community for golf",
-                        "displayName": "Golf Assist",
-                        "expirationDateTime": None,
-                        "groupTypes": [
-                            "Unified"
-                        ],
-                        "isAssignableToRole": "null",
-                        "mail": "golfassist@contoso.com",
-                        "mailNickname": "golfassist",
-                        "preferredDataLocation": "CAN",
-                        "renewedDateTime": "2018-12-22T02:21:05Z",
-                    },
-                ]
-            }
+            [
+                {
+                    "id": "45b7d2e7-b882-4a80-ba97-10b7a63b8fa4",
+                    "deletedDateTime": None,
+                    "createdDateTime": "2018-12-22T02:21:05Z",
+                    "description": "Self help community for golf",
+                    "displayName": "Golf Assist",
+                    "expirationDateTime": None,
+                    "groupTypes": [
+                        "Unified"
+                    ],
+                    "isAssignableToRole": "null",
+                    "mail": "golfassist@contoso.com",
+                    "mailNickname": "golfassist",
+                    "preferredDataLocation": "CAN",
+                    "renewedDateTime": "2018-12-22T02:21:05Z",
+                },
+            ]
         )
     ],
 )
@@ -121,7 +109,7 @@ def test_get_team_members(mock_teams):
     """Test get members of team"""
     # Setup
     team_member_obj = create_channel_obj()
-    team_member_obj.client.get = Mock(return_value=mock_teams)
+    team_member_obj.client.get_teams = Mock(return_value=mock_teams)
 
     # Execute
     target_teams = team_member_obj.get_team_members()
@@ -186,7 +174,6 @@ def test_get_message_replies(mock_channels):
     target_channel_message_reply = team_replies_obj.get_message_replies(
         1, 2, 3, "2021-03-29T03:56:13.26Z", "2021-03-30T03:56:12.26Z"
     )
-    print(target_channel_message_reply)
     assert target_channel_message_reply == "Joni Sherman - Hi everyone"
 
 
@@ -321,16 +308,9 @@ def test_get_channel_tabs(mock_channel_tabs, source_channel_tabs, source_channel
 
 
 @pytest.mark.parametrize(
-    "channel_schema, source_teams, source_channels",
+    "source_teams, source_channels",
     [
         (
-            {
-                'id': 'id',
-                'url': 'webUrl',
-                'title': 'displayName',
-                'body': 'description',
-                'created_at': 'createdDateTime'
-            },
             [{
                 1: [{
                     'type': 'Channels',
@@ -354,16 +334,15 @@ def test_get_channel_tabs(mock_channel_tabs, source_channel_tabs, source_channel
         )
     ],
 )
-def test_get_team_channels(channel_schema, source_teams, source_channels):
+def test_get_team_channels(source_teams, source_channels):
     """Test get channels for teams"""
     # Setup
     channel_tabs_obj = create_channel_obj()
     teams = [{"title": "dummy", "id": 1}]
     new_response = Response()
-    new_response._content = b'{"value": [{"id": "1", "createdDateTime": "2017-07-31T18:56:16.533Z", "displayName": "General", "description": "description", "email": "", "webUrl": "https://teams.microsoft.com/l/", "membershipType": "standard"}]}'
+    new_response._content = b'[{"id": "1", "createdDateTime": "2017-07-31T18:56:16.533Z", "displayName": "General", "description": "description", "email": "", "webUrl": "https://teams.microsoft.com/l/", "membershipType": "standard"}]'
     new_response.status_code = 200
-    channel_tabs_obj.client.get = Mock(return_value=new_response.json())
-    channel_tabs_obj.get_schema_fields = Mock(return_value=channel_schema)
+    channel_tabs_obj.client.get_channels = Mock(return_value=new_response.json())
 
     # Execute
     target_teams, target_channels = channel_tabs_obj.get_team_channels(teams, [1, 2])
