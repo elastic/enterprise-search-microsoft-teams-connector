@@ -84,7 +84,7 @@ class MSTeamsChannels:
             )
 
             if not response:
-                return {}
+                continue
 
             for member in response:
                 display_name = member["displayName"]
@@ -324,7 +324,7 @@ class MSTeamsChannels:
                     )
 
                     if not response:
-                        return documents
+                        continue
 
                     for tab in response:
                         # Logic to append channel tabs for deletion
