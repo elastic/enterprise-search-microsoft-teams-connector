@@ -512,7 +512,7 @@ application_id: '1234a329-b7e5-4fb4-1234-123a095abc48'
 The client secret of the newly created application from the Microsoft Azure Portal. See [Gather Microsoft Teams details](#gather-microsoft-teams-details).
 
 ```yaml
-client_secret: 'UN37Q~YhYTCNnPK-n_SULSrMZVxNb-yfwABCD'
+client_secret: <SECRET>
 ```
 
 #### `tenant_id` (required)
