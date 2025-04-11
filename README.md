@@ -16,7 +16,7 @@ ___
 Use this _Elastic Enterprise Search Microsoft Teams connector package_ to deploy deploy and run a Microsoft Teams content source on your own infrastructure. The connector package extracts and syncs data from your [Microsoft Teams](https://www.microsoft.com/en/microsoft-teams/group-chat-software) application. The data is indexed into a Workplace Search content source within an Elastic deployment.
 
 ⚠️ _This connector package is a **beta** feature._
-Beta features are subject to change and are not covered by the support SLA of generally available (GA) features. Elastic plans to promote this feature to GA in a future release.
+Beta features are subject to change and are not covered by the support SLA of generally available (GA) features.
 
 ℹ️ _This connector package requires a compatible Elastic subscription level._
 Refer to the Elastic subscriptions pages for [Elastic Cloud](https://www.elastic.co/subscriptions/cloud) and [self-managed](https://www.elastic.co/subscriptions) deployments.
